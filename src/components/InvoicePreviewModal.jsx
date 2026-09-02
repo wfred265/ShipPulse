@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Download, FileText, Send, UserCheck, ShieldCheck, Layers, CheckCircle2, MapPin, Phone, Mail, AlertTriangle } from 'lucide-react';
 import { generateShipmentInvoicePDF, generateBothInvoicesPDF } from '../utils/pdfGenerator';
-import { formatTownLocationString } from '../utils/geo';
+import { formatTownLocationString, extractCityOnly } from '../utils/geo';
 import { getShipmentRegionConfig } from '../utils/regionUtils';
 import { translations } from '../utils/translations';
 
@@ -36,6 +36,9 @@ export default function InvoicePreviewModal({ shipment, onClose }) {
 
   const originTownStr = formatTownLocationString(originLocation) || originCity || "Plattsburgh, NY";
   const destTownStr = formatTownLocationString(destLocation) || destinationCity || "Riverside, CA";
+  // City-only variants for invoice display (strip region/state suffix)
+  const originCityOnly = extractCityOnly(originTownStr);
+  const destCityOnly = extractCityOnly(destTownStr);
 
   const isInsuranceInvoice = activeInvoiceType === 'insurance';
 
@@ -243,7 +246,7 @@ export default function InvoicePreviewModal({ shipment, onClose }) {
                 boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
               }}>
                 <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  <strong>{t('inv_route')}</strong> {originTownStr.toUpperCase()} &rarr; {destTownStr.toUpperCase()}
+                  <strong>{t('inv_route')}</strong> {originCityOnly.toUpperCase()} &rarr; {destCityOnly.toUpperCase()}
                 </div>
 
                 <div style={{
@@ -273,7 +276,7 @@ export default function InvoicePreviewModal({ shipment, onClose }) {
                     {sender.company && <span>{t('inv_company')} <strong>{sender.company}</strong><br /></span>}
                     Email: {sender.email || 'N/A'}<br />
                     {isFR ? 'Tél :' : 'Phone:'} {sender.phone || 'N/A'}<br />
-                    {t('inv_departure_town')} <strong>{originTownStr}</strong><br />
+                    {t('inv_departure_town')} <strong>{originCityOnly}</strong><br />
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('inv_id_doc')} {sender.idDocument || 'Verified'}</span>
                   </div>
                 </div>
@@ -287,7 +290,7 @@ export default function InvoicePreviewModal({ shipment, onClose }) {
                     <strong style={{ color: '#059669', fontSize: '0.95rem' }}>{recipient.firstName} {recipient.lastName}</strong><br />
                     Email: {recipient.email || 'N/A'}<br />
                     {isFR ? 'Tél :' : 'Phone:'} {recipient.phone || 'N/A'}<br />
-                    {t('inv_dest_town')} <strong>{destTownStr}</strong><br />
+                    {t('inv_dest_town')} <strong>{destCityOnly}</strong><br />
                     {t('inv_delivery_address')} {recipient.deliveryAddress || destTownStr}
                   </div>
                 </div>

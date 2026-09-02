@@ -193,6 +193,19 @@ export function formatLocationString(loc) {
   return formatTownLocationString(loc);
 }
 
+/**
+ * Returns only the city portion of a location string (before the first comma).
+ * e.g. "NICE, PROVENCE-ALPES-CÔTE D'AZUR" → "NICE"
+ * e.g. "New York, NY" → "New York"
+ * Used in invoices and PDFs to avoid verbose region/state suffixes.
+ */
+export function extractCityOnly(locationStr) {
+  if (!locationStr) return '';
+  const commaIdx = locationStr.indexOf(',');
+  if (commaIdx === -1) return locationStr.trim();
+  return locationStr.substring(0, commaIdx).trim();
+}
+
 export function calculateDistanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * (Math.PI / 180);

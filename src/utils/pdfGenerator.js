@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { formatTownLocationString } from './geo';
+import { formatTownLocationString, extractCityOnly } from './geo';
 import { getShipmentRegionConfig } from './regionUtils';
 
 /**
@@ -59,6 +59,9 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
 
   const originTownStr = formatTownLocationString(originLocation) || originCity || "Plattsburgh, NY";
   const destTownStr = formatTownLocationString(destLocation) || destinationCity || "Riverside, CA";
+  // City-only: strip region/state suffix for invoice display
+  const originCityOnly = extractCityOnly(originTownStr);
+  const destCityOnly = extractCityOnly(destTownStr);
 
   const primaryNavy = [11, 25, 44];
   const primaryCyan = [0, 168, 232];
@@ -119,7 +122,7 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...primaryNavy);
-  doc.text(`${isFR ? 'ITINÉRAIRE :' : 'ROUTE:'} ${originTownStr.toUpperCase()}   ===>   ${destTownStr.toUpperCase()}`, 18, y + 7.5);
+  doc.text(`${isFR ? 'ITINÉRAIRE :' : 'ROUTE:'} ${originCityOnly.toUpperCase()}   ===>   ${destCityOnly.toUpperCase()}`, 18, y + 7.5);
   
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...accentBlue);
@@ -146,7 +149,7 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
   doc.text(`${isFR ? 'Société :' : 'Company:'} ${sender.company || 'N/A'}`, 18, y + 17);
   doc.text(`Email: ${sender.email || 'N/A'}`, 18, y + 22);
   doc.text(`${isFR ? 'Tél :' : 'Phone:'} ${sender.phone || 'N/A'}`, 18, y + 27);
-  doc.text(`${isFR ? 'Départ :' : 'Departure:'} ${originTownStr}`, 18, y + 32);
+  doc.text(`${isFR ? 'Départ :' : 'Departure:'} ${originCityOnly}`, 18, y + 32);
 
   doc.setFillColor(...bgLight);
   doc.setDrawColor(...borderLight);
@@ -165,7 +168,7 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
   doc.text(`${isFR ? 'Nom :' : 'Name:'} ${recipient.firstName || ''} ${recipient.lastName || ''}`, 112, y + 12);
   doc.text(`Email: ${recipient.email || 'N/A'}`, 112, y + 17);
   doc.text(`${isFR ? 'Tél :' : 'Phone:'} ${recipient.phone || 'N/A'}`, 112, y + 22);
-  doc.text(`${isFR ? 'Arrivée :' : 'Destination:'} ${destTownStr}`, 112, y + 27);
+  doc.text(`${isFR ? 'Arrivée :' : 'Destination:'} ${destCityOnly}`, 112, y + 27);
 
   y += 48;
 
