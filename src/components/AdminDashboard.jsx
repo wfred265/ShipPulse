@@ -26,7 +26,7 @@ export default function AdminDashboard() {
     shipments, 
     activeShipmentId, 
     setActiveShipmentId, 
-    getActiveShipment, 
+    activeShipment, 
     deleteShipment 
   } = useShipments();
 
@@ -38,8 +38,6 @@ export default function AdminDashboard() {
   const [editModalShipment, setEditModalShipment] = useState(null);
   const [pauseModalShipment, setPauseModalShipment] = useState(null);
   const [previewInvoiceShipment, setPreviewInvoiceShipment] = useState(null);
-
-  const activeShipment = getActiveShipment();
 
   const filteredShipments = shipments.filter(s => 
     s.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
