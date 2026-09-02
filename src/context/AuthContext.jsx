@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
 
 const AuthContext = createContext();
 
@@ -21,12 +22,25 @@ export const AuthProvider = ({ children }) => {
   // Fetch admin staff list on load
   useEffect(() => {
     async function fetchStaff() {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data, error } = await supabase.from('admin_users').select('id, username, fullName, role, created_at');
+          if (!error && Array.isArray(data) && data.length > 0) {
+            setAdminStaffList(data);
+            return;
+          }
+        } catch (e) {}
+      }
+
       try {
         const res = await fetch(`${API_BASE_URL}/users`);
         if (res.ok) {
-          const result = await res.json();
-          if (result.success && Array.isArray(result.data) && result.data.length > 0) {
-            setAdminStaffList(result.data);
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const result = await res.json();
+            if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+              setAdminStaffList(result.data);
+            }
           }
         }
       } catch (err) {
@@ -37,6 +51,24 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (username, password) => {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('admin_users')
+          .select('*')
+          .eq('username', username)
+          .eq('password', password)
+          .maybeSingle();
+
+        if (!error && data) {
+          const { password, ...userWithoutPassword } = data;
+          setCurrentAdmin(userWithoutPassword);
+          sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userWithoutPassword));
+          return { success: true };
+        }
+      } catch (e) {}
+    }
+
     try {
       const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
@@ -45,11 +77,14 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (res.ok) {
-        const result = await res.json();
-        if (result.success && result.user) {
-          setCurrentAdmin(result.user);
-          sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(result.user));
-          return { success: true };
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const result = await res.json();
+          if (result.success && result.user) {
+            setCurrentAdmin(result.user);
+            sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(result.user));
+            return { success: true };
+          }
         }
       }
     } catch (err) {}

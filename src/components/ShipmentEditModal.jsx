@@ -6,6 +6,7 @@ import LocationAutocompleteInput from './LocationAutocompleteInput';
 import { formatTownLocationString, resolveCoords, isValidWorldwideLocation } from '../utils/geo';
 
 export default function ShipmentEditModal({ shipment, onClose }) {
+  if (!shipment) return null;
   const { lang, currencySymbol } = useLanguage();
   const { updateShipment } = useShipments();
   const [locationValidationError, setLocationValidationError] = useState('');

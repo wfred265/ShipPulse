@@ -51,16 +51,27 @@ export default function ClientLanding() {
     e.preventDefault();
     setSearchError('');
     
-    const query = trackingCodeInput.trim().toUpperCase();
-    if (!query) return;
+    const rawQuery = trackingCodeInput.trim().toUpperCase();
+    const cleanQuery = rawQuery.replace(/[^A-Z0-9]/g, '');
+    if (!cleanQuery) return;
 
-    const found = shipments.find(s => s.id.toUpperCase() === query);
+    const found = shipments.find(s => {
+      const sid = s.id.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const sidBase = sid.replace(/[UE]$/, '');
+      return (
+        sid === cleanQuery || 
+        sidBase === cleanQuery || 
+        sid.includes(cleanQuery) || 
+        (cleanQuery.length >= 4 && sidBase.includes(cleanQuery))
+      );
+    });
+
     if (found) {
       setActiveTrackingShipment(found);
     } else {
       setSearchError(lang === 'fr' 
-        ? `Aucune expédition active trouvée avec le code de suivi "${query}". Veuillez vérifier votre numéro et réessayer.`
-        : `No active shipment found with tracking code "${query}". Please verify your tracking number and try again.`
+        ? `Aucune expédition active trouvée avec le code de suivi "${rawQuery}". Veuillez vérifier votre numéro et réessayer.`
+        : `No active shipment found with tracking code "${rawQuery}". Please verify your tracking number and try again.`
       );
     }
   };
@@ -68,7 +79,11 @@ export default function ClientLanding() {
   const handleQuickPillClick = (code) => {
     setTrackingCodeInput(code);
     setSearchError('');
-    const found = shipments.find(s => s.id.toUpperCase() === code);
+    const cleanCode = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const found = shipments.find(s => {
+      const sid = s.id.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      return sid === cleanCode || sid.includes(cleanCode);
+    });
     if (found) {
       setActiveTrackingShipment(found);
     }

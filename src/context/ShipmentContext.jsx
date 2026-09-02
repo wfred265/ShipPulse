@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { INITIAL_SHIPMENTS } from '../utils/mockData';
 import { interpolatePosition, calculateRatioFromCoords } from '../utils/geo';
+import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
 
 const ShipmentContext = createContext();
 
@@ -20,43 +21,82 @@ export const ShipmentProvider = ({ children }) => {
   const [activeShipmentId, setActiveShipmentId] = useState("SP-88219U");
   const channelRef = useRef(null);
 
-  // 1. Initial Load & 5-Second Global Database Sync Loop across all devices
+  // 1. Initial Load & Supabase Cloud Database Realtime Listener
   useEffect(() => {
     let isMounted = true;
 
-    async function fetchFromDatabase() {
+    async function loadFromSupabase() {
+      if (!isSupabaseConfigured || !supabase) return false;
       try {
-        const res = await fetch(`${API_BASE_URL}/shipments`);
-        if (res.ok) {
-          const result = await res.json();
-          if (result.success && Array.isArray(result.data) && isMounted) {
-            setShipments(result.data);
-            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(result.data)); } catch (e) {}
-          }
+        const { data, error } = await supabase
+          .from('shipments')
+          .select('*')
+          .order('updated_at', { ascending: false });
+
+        if (!error && Array.isArray(data) && data.length > 0 && isMounted) {
+          const list = data.map(row => (typeof row.data === 'string' ? JSON.parse(row.data) : row.data));
+          setShipments(list);
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch (e) {}
+          return true;
         }
       } catch (err) {
-        // Silently catch error if API is offline
+        console.warn("Supabase fetch error:", err);
       }
+      return false;
     }
 
-    fetchFromDatabase();
+    loadFromSupabase();
 
-    // Poll SQLite database every 5 seconds for multi-device real-time sync
-    const syncInterval = setInterval(fetchFromDatabase, 5000);
+    // Subscribe to Supabase Realtime Postgres Changes across all devices
+    let channel = null;
+    if (isSupabaseConfigured && supabase) {
+      channel = supabase
+        .channel('public:shipments')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () => {
+          loadFromSupabase();
+        })
+        .subscribe();
+    }
+
+    // Fallback: fetch from local Express REST API if Supabase is not configured
+    if (!isSupabaseConfigured) {
+      async function fetchFromDatabase() {
+        try {
+          const res = await fetch(`${API_BASE_URL}/shipments`);
+          if (res.ok) {
+            const contentType = res.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+              const result = await res.json();
+              if (result.success && Array.isArray(result.data) && result.data.length > 0 && isMounted) {
+                setShipments(result.data);
+                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(result.data)); } catch (e) {}
+              }
+            }
+          }
+        } catch (err) {}
+      }
+      fetchFromDatabase();
+      const syncInterval = setInterval(fetchFromDatabase, 5000);
+      return () => {
+        isMounted = false;
+        clearInterval(syncInterval);
+        if (channel) supabase.removeChannel(channel);
+      };
+    }
 
     return () => {
       isMounted = false;
-      clearInterval(syncInterval);
+      if (channel) supabase.removeChannel(channel);
     };
   }, []);
 
-  // 2. Cross-tab BroadcastChannel sync for same-device instant tabs update
+  // 2. Cross-tab BroadcastChannel & LocalStorage sync for instant multi-tab updates
   useEffect(() => {
     try {
       if ('BroadcastChannel' in window) {
         channelRef.current = new BroadcastChannel(CHANNEL_NAME);
         channelRef.current.onmessage = (event) => {
-          if (event.data && event.data.type === 'SHIPMENTS_UPDATE') {
+          if (event.data && event.data.type === 'SHIPMENTS_UPDATE' && Array.isArray(event.data.data)) {
             setShipments(event.data.data);
             try { localStorage.setItem(STORAGE_KEY, JSON.stringify(event.data.data)); } catch (e) {}
           }
@@ -64,10 +104,24 @@ export const ShipmentProvider = ({ children }) => {
       }
     } catch (e) {}
 
+    const handleStorageChange = (e) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setShipments(parsed);
+          }
+        } catch (err) {}
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
     return () => {
       if (channelRef.current) {
         channelRef.current.close();
       }
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 
@@ -147,8 +201,15 @@ export const ShipmentProvider = ({ children }) => {
         });
       }
 
-      // Sync updated item to SQLite REST API Backend in background
-      if (updatedItem && updatedItem.id) {
+      // Sync updated item to Supabase Cloud Database or Express API
+      if (isSupabaseConfigured && supabase && updatedItem && updatedItem.id) {
+        supabase
+          .from('shipments')
+          .upsert({ id: updatedItem.id, data: updatedItem, updated_at: new Date().toISOString() })
+          .then(({ error }) => {
+            if (error) console.warn("Supabase upsert error:", error);
+          });
+      } else if (updatedItem && updatedItem.id) {
         fetch(`${API_BASE_URL}/shipments/${updatedItem.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -193,13 +254,6 @@ export const ShipmentProvider = ({ children }) => {
     const updated = [newShipment, ...shipments];
     saveAndBroadcast(updated, newShipment);
 
-    // Save directly to Production SQLite Database REST API
-    fetch(`${API_BASE_URL}/shipments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newShipment)
-    }).catch(e => console.warn("API POST error:", e));
-
     setActiveShipmentId(newId);
     return newId;
   };
@@ -240,14 +294,61 @@ export const ShipmentProvider = ({ children }) => {
       }
     } catch (e) {}
 
-    // Send HTTP DELETE to SQLite database
-    fetch(`${API_BASE_URL}/shipments/${id}`, {
-      method: 'DELETE'
-    }).catch(e => console.warn("API DELETE error:", e));
+    if (isSupabaseConfigured && supabase) {
+      supabase
+        .from('shipments')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.warn("Supabase delete error:", error);
+        });
+    } else {
+      fetch(`${API_BASE_URL}/shipments/${id}`, { method: 'DELETE' }).catch(e => console.warn("API DELETE error:", e));
+    }
 
     if (activeShipmentId === id && updated.length > 0) {
       setActiveShipmentId(updated[0].id);
     }
+  };
+
+  const togglePauseShipment = (id, pauseReason = '') => {
+    let targetItem = null;
+    const updated = shipments.map(s => {
+      if (s.id === id) {
+        const nextPaused = !s.isPaused;
+        const merged = {
+          ...s,
+          isPaused: nextPaused,
+          pauseReason: nextPaused ? (pauseReason || s.pauseReason || 'Vehicle operations temporarily paused by dispatch command') : ''
+        };
+        targetItem = merged;
+        return merged;
+      }
+      return s;
+    });
+
+    saveAndBroadcast(updated, targetItem);
+  };
+
+  const updateShipmentCoords = (id, newCoords) => {
+    let targetItem = null;
+    const updated = shipments.map(s => {
+      if (s.id === id) {
+        const newRatio = calculateRatioFromCoords(s.originCoords, s.destCoords, newCoords);
+        const nextProgress = Math.min(100, Math.max(0, Math.round(newRatio * 100)));
+        const merged = {
+          ...s,
+          currentCoords: newCoords,
+          progressPercentage: nextProgress,
+          status: nextProgress >= 100 ? 'Delivered' : (s.isPaused ? s.status : 'In Transit')
+        };
+        targetItem = merged;
+        return merged;
+      }
+      return s;
+    });
+
+    saveAndBroadcast(updated, targetItem);
   };
 
   const resetToDemoData = () => {
@@ -266,6 +367,8 @@ export const ShipmentProvider = ({ children }) => {
       createShipment,
       updateShipment,
       deleteShipment,
+      togglePauseShipment,
+      updateShipmentCoords,
       resetToDemoData
     }}>
       {children}
