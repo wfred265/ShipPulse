@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useShipments } from '../context/ShipmentContext';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import AdminMapControl from './AdminMapControl';
 import ShipmentDetailsCard from './ShipmentDetailsCard';
 import PauseAlertModal from './PauseAlertModal';
@@ -20,6 +21,7 @@ import AdminUsersManager from './AdminUsersManager';
 import InvoicePreviewModal from './InvoicePreviewModal';
 
 export default function AdminDashboard() {
+  const { lang, setLang, t } = useLanguage();
   const { 
     shipments, 
     activeShipmentId, 
@@ -58,22 +60,66 @@ export default function AdminDashboard() {
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '16px' }}>
       
-      {/* Top Banner with Admin Auth Status */}
+      {/* Top Banner with Admin Auth Status & Language Switcher */}
       <div className="glass-card" style={{ padding: '18px 20px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', borderLeft: '5px solid var(--primary-cyan)' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span className="badge badge-paid" style={{ fontSize: '0.75rem' }}>Protected Admin Console</span>
+            <span className="badge badge-paid" style={{ fontSize: '0.75rem' }}>
+              {lang === 'fr' ? 'Console Admin Protégée' : 'Protected Admin Console'}
+            </span>
             <h2 style={{ fontSize: '1.35rem', color: 'var(--primary-navy)', margin: 0 }}>
-              ShipPulse Operational Command
+              {t('dash_title')}
             </h2>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
-            Authenticated: <strong style={{ color: 'var(--primary-navy)' }}>{currentAdmin?.fullName || 'Administrator'}</strong> ({currentAdmin?.role || 'Super Admin'})
+            {lang === 'fr' ? 'Authentifié :' : 'Authenticated:'} <strong style={{ color: 'var(--primary-navy)' }}>{currentAdmin?.fullName || 'Administrator'}</strong> ({currentAdmin?.role || 'Super Admin'})
           </p>
         </div>
 
-        {/* Tab Switcher & Logout */}
+        {/* Tab Switcher, Language Toggle & Logout */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', width: '100%', maxWidth: 'max-content' }}>
+          
+          {/* Dashboard Language Switcher Pill */}
+          <div style={{ display: 'flex', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: 'var(--radius-full)', padding: '2px' }}>
+            <button
+              onClick={() => setLang('en')}
+              style={{
+                background: lang === 'en' ? 'var(--primary-navy)' : 'transparent',
+                color: lang === 'en' ? '#FFFFFF' : '#475569',
+                border: 'none',
+                borderRadius: 'var(--radius-full)',
+                padding: '5px 10px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              🇬🇧 EN
+            </button>
+
+            <button
+              onClick={() => setLang('fr')}
+              style={{
+                background: lang === 'fr' ? '#059669' : 'transparent',
+                color: lang === 'fr' ? '#FFFFFF' : '#475569',
+                border: 'none',
+                borderRadius: 'var(--radius-full)',
+                padding: '5px 10px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              🇫🇷 FR
+            </button>
+          </div>
+
           <div style={{ display: 'flex', background: '#F1F5F9', padding: '4px', borderRadius: 'var(--radius-sm)', border: '1px solid #CBD5E1', flex: 1 }}>
             <button
               onClick={() => setActiveAdminTab('fleet')}
@@ -88,13 +134,13 @@ export default function AdminDashboard() {
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
+                justify: 'center',
                 gap: '6px',
                 fontSize: '0.82rem',
                 minHeight: '40px'
               }}
             >
-              <LayoutDashboard size={15} /> Fleet Command
+              <LayoutDashboard size={15} /> {lang === 'fr' ? 'Commandement Flotte' : 'Fleet Command'}
             </button>
 
             <button
@@ -116,12 +162,12 @@ export default function AdminDashboard() {
                 minHeight: '40px'
               }}
             >
-              <Users size={15} /> Staff Manager
+              <Users size={15} /> {lang === 'fr' ? 'Gestion Personnel' : 'Staff Manager'}
             </button>
           </div>
 
           <button className="btn-secondary" onClick={logout} style={{ color: '#E11D48', minHeight: '40px' }}>
-            <LogOut size={16} /> Exit
+            <LogOut size={16} /> {t('nav_logout')}
           </button>
         </div>
       </div>
@@ -131,24 +177,24 @@ export default function AdminDashboard() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
             <h3 style={{ fontSize: '1.15rem', color: 'var(--primary-navy)', margin: 0 }}>
-              Active Fleet Telemetry & Direct Map Control
+              {lang === 'fr' ? 'Télémétrie Flotte Active & Contrôle Direct Carte' : 'Active Fleet Telemetry & Direct Map Control'}
             </h3>
 
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', width: '100%', maxWidth: 'max-content' }}>
               {activeShipment && (
                 <>
                   <button className="btn-primary" onClick={() => setEditModalShipment(activeShipment)} style={{ flex: 1 }}>
-                    <Edit3 size={16} /> Edit Shipment
+                    <Edit3 size={16} /> {t('act_edit')}
                   </button>
 
                   <button className="btn-secondary" onClick={() => setPreviewInvoiceShipment(activeShipment)} style={{ flex: 1 }}>
-                    <Eye size={16} color="var(--primary-cyan)" /> Invoice
+                    <Eye size={16} color="var(--primary-cyan)" /> {t('act_invoices')}
                   </button>
                 </>
               )}
               
               <button className="btn-cyan" onClick={() => setShowCreateModal(true)} style={{ width: '100%' }}>
-                <PlusCircle size={18} /> Register New Shipment
+                <PlusCircle size={18} /> {t('dash_new_shipment')}
               </button>
             </div>
           </div>
@@ -159,8 +205,12 @@ export default function AdminDashboard() {
             {/* Left Column: Shipment List */}
             <div className="glass-card" style={{ padding: '16px' }}>
               <div className="flex-between" style={{ marginBottom: '14px' }}>
-                <h4 style={{ fontSize: '1rem', color: 'var(--primary-navy)', margin: 0 }}>Fleet List ({shipments.length})</h4>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Real-time sync</span>
+                <h4 style={{ fontSize: '1rem', color: 'var(--primary-navy)', margin: 0 }}>
+                  {lang === 'fr' ? `Liste Flotte (${shipments.length})` : `Fleet List (${shipments.length})`}
+                </h4>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  {lang === 'fr' ? 'Synchro direct' : 'Real-time sync'}
+                </span>
               </div>
 
               <div style={{ position: 'relative', marginBottom: '14px' }}>
@@ -168,7 +218,7 @@ export default function AdminDashboard() {
                 <input 
                   type="text" 
                   className="glass-input" 
-                  placeholder="Search ID, city, shipper..." 
+                  placeholder={t('dash_search_placeholder')} 
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   style={{ paddingLeft: '36px' }}
@@ -179,6 +229,22 @@ export default function AdminDashboard() {
                 {filteredShipments.map(s => {
                   const isSelected = s.id === activeShipmentId;
                   const isPaymentPending = s.freight?.shippingFeeStatus === 'Pending' || s.freight?.insuranceFeeStatus === 'Pending';
+                  
+                  let displayStatus = s.status;
+                  if (s.isPaused) {
+                    displayStatus = lang === 'fr' ? 'EN PAUSE' : 'PAUSED';
+                  } else if (isPaymentPending) {
+                    displayStatus = lang === 'fr' ? 'PAIEMENT EN ATTENTE' : 'PAYMENT HOLD';
+                  } else if (lang === 'fr') {
+                    if (s.status === 'In Transit') displayStatus = 'En Transit';
+                    if (s.status === 'Delivered') displayStatus = 'Livré';
+                    if (s.status === 'Pending') displayStatus = 'En Attente';
+                    if (s.status === 'Cancelled') displayStatus = 'Annulé';
+                  }
+
+                  const isEurope = (s.region || '').toUpperCase() === 'EUROPE' || s.id.endsWith('E');
+                  const regionFlag = isEurope ? '🇪🇺' : '🇺🇸';
+
                   return (
                     <div
                       key={s.id}
@@ -199,10 +265,11 @@ export default function AdminDashboard() {
                           <strong style={{ color: 'var(--primary-navy)', fontSize: '0.98rem' }}>
                             {s.id}
                           </strong>
+                          <span style={{ fontSize: '0.78rem' }}>{regionFlag}</span>
                         </div>
 
                         <span className={`badge ${s.isPaused ? 'badge-paused' : (s.status === 'Delivered' ? 'badge-paid' : (isPaymentPending ? 'badge-pending' : 'badge-transit'))}`} style={{ fontSize: '0.68rem' }}>
-                          {s.isPaused ? 'PAUSED' : (isPaymentPending ? 'PAYMENT HOLD' : s.status)}
+                          {displayStatus}
                         </span>
                       </div>
 
@@ -224,7 +291,7 @@ export default function AdminDashboard() {
                               e.stopPropagation();
                               setEditModalShipment(s);
                             }}
-                            title="Edit Shipment"
+                            title={t('act_edit')}
                             style={{ background: 'transparent', border: 'none', color: 'var(--primary-cyan)', cursor: 'pointer', padding: '6px' }}
                           >
                             <Edit3 size={16} />
@@ -235,7 +302,7 @@ export default function AdminDashboard() {
                               e.stopPropagation();
                               if (confirm(`Delete shipment ${s.id}?`)) deleteShipment(s.id);
                             }}
-                            title="Delete Shipment"
+                            title={t('act_delete')}
                             style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '6px' }}
                           >
                             <Trash2 size={16} />
@@ -248,7 +315,7 @@ export default function AdminDashboard() {
 
                 {filteredShipments.length === 0 && (
                   <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                    No shipments match search query.
+                    {lang === 'fr' ? 'Aucune expédition ne correspond.' : 'No shipments match search query.'}
                   </div>
                 )}
               </div>
@@ -267,7 +334,9 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <div className="glass-card" style={{ padding: '60px', textAlign: 'center' }}>
-                  <h3 style={{ color: 'var(--text-muted)' }}>Select a shipment from the list or register a new one.</h3>
+                  <h3 style={{ color: 'var(--text-muted)' }}>
+                    {lang === 'fr' ? 'Sélectionnez une expédition dans la liste ou enregistrez-en une nouvelle.' : 'Select a shipment from the list or register a new one.'}
+                  </h3>
                 </div>
               )}
             </div>

@@ -1,58 +1,51 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { formatTownLocationString } from './geo.js';
+import { formatTownLocationString } from './geo';
+import { getShipmentRegionConfig } from './regionUtils';
 
+/**
+ * Generate PDF Invoice bound immutably to shipment region (USA = EN/$, EUROPE = FR/€)
+ * @param {Object} shipment 
+ * @param {String} type - 'shipping' | 'insurance'
+ */
 export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
-  const { id } = shipment || {};
   const isInsuranceInvoice = type === 'insurance';
 
-  // 1. Fixed Standard A4 DOM Capture via html2canvas (Identical on Phones & Laptops!)
-  const element = document.getElementById('invoice-paper-preview');
-  
-  if (element) {
+  // Immutable per-shipment region binding
+  const regionConfig = getShipmentRegionConfig(shipment);
+  const isFR = regionConfig.lang === 'fr';
+  const formatCurrencyPDF = regionConfig.formatCurrency;
+
+  // 1. Try DOM Capture via html2canvas (Exact 1:1 Parity)
+  const paperElement = document.getElementById('invoice-paper-preview');
+  if (paperElement) {
     try {
-      // Temporarily enforce fixed standard A4 width (794px) during capture so phone screens produce 100% identical PDFs as laptops
-      const originalStyleWidth = element.style.width;
-      const originalMinWidth = element.style.minWidth;
-      
-      element.style.width = '794px';
-      element.style.minWidth = '794px';
-
-      const canvas = await html2canvas(element, {
-        scale: 2.0, // High resolution crisp A4 rendering
+      const canvas = await html2canvas(paperElement, {
+        scale: 2,
         useCORS: true,
-        logging: false,
         backgroundColor: '#FFFFFF',
-        width: 794
+        logging: false
       });
 
-      // Restore responsive styles
-      element.style.width = originalStyleWidth;
-      element.style.minWidth = originalMinWidth;
-
-      const imgData = canvas.toDataURL('image/png', 1.0);
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      const pdfWidth = pdf.internal.pageSize.getWidth(); // 210mm
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-
-      const filename = isInsuranceInvoice ? `ShipPulse_Insurance_Invoice_${id}.pdf` : `ShipPulse_Freight_Invoice_${id}.pdf`;
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      const filename = isInsuranceInvoice ? `ShipPulse_Insurance_Invoice_${shipment.id}.pdf` : `ShipPulse_Freight_Invoice_${shipment.id}.pdf`;
       pdf.save(filename);
       return;
-    } catch (err) {
-      console.warn("html2canvas A4 capture fallback:", err);
+    } catch (e) {
+      console.warn("DOM Capture PDF export failed, falling back to jsPDF vector rendering:", e);
     }
   }
 
-  // 2. Programmatic Standard A4 PDF Fallback
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  // 2. Vector jsPDF Fallback
+  const doc = new jsPDF('p', 'mm', 'a4');
+  
   const {
+    id,
     sender = {},
     recipient = {},
     freight = {},
@@ -62,7 +55,7 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
     destLocation,
     transportMode,
     createdAt
-  } = shipment || {};
+  } = shipment;
 
   const originTownStr = formatTownLocationString(originLocation) || originCity || "Plattsburgh, NY";
   const destTownStr = formatTownLocationString(destLocation) || destinationCity || "Riverside, CA";
@@ -71,41 +64,42 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
   const primaryCyan = [0, 168, 232];
   const accentBlue = [0, 119, 182];
   const emeraldGreen = [5, 150, 105];
-  const bgLight = [248, 250, 252];
-  const borderLight = [226, 232, 240];
   const textDark = [15, 23, 42];
   const textMuted = [100, 116, 139];
+  const bgLight = [248, 250, 252];
+  const borderLight = [226, 232, 240];
 
-  doc.setFillColor(...primaryNavy);
-  doc.rect(0, 0, 210, 4, 'F');
+  doc.setFillColor(isInsuranceInvoice ? emeraldGreen[0] : primaryNavy[0], isInsuranceInvoice ? emeraldGreen[1] : primaryNavy[1], isInsuranceInvoice ? emeraldGreen[2] : primaryNavy[2]);
+  doc.rect(0, 0, 210, 3, 'F');
   doc.setFillColor(...primaryCyan);
-  doc.rect(0, 4, 210, 1.5, 'F');
+  doc.rect(0, 3, 210, 1, 'F');
 
+  doc.setFontSize(22);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
   doc.setTextColor(...primaryNavy);
   doc.text('SHIP', 14, 18);
+  const shipWidth = doc.getTextWidth('SHIP');
   doc.setTextColor(...primaryCyan);
-  doc.text('PULSE', 32, 18);
+  doc.text('PULSE', 14 + shipWidth, 18);
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(...textMuted);
-  doc.text('Precision tracking, effortless delivery.', 14, 23);
+  doc.text(isFR ? 'Suivi de précision, livraison sans effort.' : 'Precision tracking, effortless delivery.', 14, 23);
 
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
   doc.setTextColor(isInsuranceInvoice ? emeraldGreen[0] : primaryNavy[0], isInsuranceInvoice ? emeraldGreen[1] : primaryNavy[1], isInsuranceInvoice ? emeraldGreen[2] : primaryNavy[2]);
-  const docTitle = isInsuranceInvoice ? 'INSURANCE COVERAGE CLEARANCE INVOICE' : 'FREIGHT & SHIPPING INVOICE';
+  const docTitle = isInsuranceInvoice ? (isFR ? "FACTURE D'ASSURANCE" : 'INSURANCE CLEARANCE INVOICE') : (isFR ? 'FACTURE DE FRET' : 'FREIGHT & SHIPPING INVOICE');
   doc.text(docTitle, 196, 14, { align: 'right' });
 
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...textMuted);
   const invNumber = isInsuranceInvoice ? `INV-INS-${id}` : `INV-FRT-${id}`;
-  doc.text(`Invoice Ref: ${invNumber}`, 196, 19, { align: 'right' });
-  doc.text(`Tracking ID: ${id}`, 196, 24, { align: 'right' });
-  doc.text(`Issued Date: ${new Date(createdAt || Date.now()).toLocaleDateString()}`, 196, 29, { align: 'right' });
+  doc.text(`${isFR ? 'Réf Facture :' : 'Invoice Ref:'} ${invNumber}`, 196, 19, { align: 'right' });
+  doc.text(`${isFR ? 'ID Suivi :' : 'Tracking ID:'} ${id}`, 196, 24, { align: 'right' });
+  doc.text(`${isFR ? "Date d'Émission :" : 'Issued Date:'} ${new Date(createdAt || Date.now()).toLocaleDateString(isFR ? 'fr-FR' : 'en-US')}`, 196, 29, { align: 'right' });
 
   doc.setDrawColor(...borderLight);
   doc.setLineWidth(0.5);
@@ -114,7 +108,7 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...textMuted);
-  doc.text('HQ: 44 Wall St, New York, NY 10005, USA  |  Email: track.shippulse@gmail.com  |  Official Authorized Logistics Document', 14, 39);
+  doc.text(isFR ? 'Siège : 44 Wall St, New York, NY 10005, USA  |  Email : track.shippulse@gmail.com  |  Document Logistique Autorisé' : 'HQ: 44 Wall St, New York, NY 10005, USA  |  Email: track.shippulse@gmail.com  |  Official Authorized Logistics Document', 14, 39);
 
   let y = 44;
 
@@ -125,7 +119,7 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...primaryNavy);
-  doc.text(`ROUTE: ${originTownStr.toUpperCase()}   ===>   ${destTownStr.toUpperCase()}`, 18, y + 7.5);
+  doc.text(`${isFR ? 'ITINÉRAIRE :' : 'ROUTE:'} ${originTownStr.toUpperCase()}   ===>   ${destTownStr.toUpperCase()}`, 18, y + 7.5);
   
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...accentBlue);
@@ -143,16 +137,16 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(255, 255, 255);
-  doc.text('SHIPPER / SENDER DETAILS', 18, y + 4.5);
+  doc.text(isFR ? "DETAILS EXPÉDITEUR" : 'SHIPPER / SENDER DETAILS', 18, y + 4.5);
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...textDark);
-  doc.text(`Name: ${sender.firstName || ''} ${sender.lastName || ''}`, 18, y + 12);
-  doc.text(`Company: ${sender.company || 'N/A'}`, 18, y + 17);
+  doc.text(`${isFR ? 'Nom :' : 'Name:'} ${sender.firstName || ''} ${sender.lastName || ''}`, 18, y + 12);
+  doc.text(`${isFR ? 'Société :' : 'Company:'} ${sender.company || 'N/A'}`, 18, y + 17);
   doc.text(`Email: ${sender.email || 'N/A'}`, 18, y + 22);
-  doc.text(`Phone: ${sender.phone || 'N/A'}`, 18, y + 27);
-  doc.text(`Departure: ${originTownStr}`, 18, y + 32);
+  doc.text(`${isFR ? 'Tél :' : 'Phone:'} ${sender.phone || 'N/A'}`, 18, y + 27);
+  doc.text(`${isFR ? 'Départ :' : 'Departure:'} ${originTownStr}`, 18, y + 32);
 
   doc.setFillColor(...bgLight);
   doc.setDrawColor(...borderLight);
@@ -163,22 +157,22 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(255, 255, 255);
-  doc.text('RECIPIENT / CONSIGNEE DETAILS', 112, y + 4.5);
+  doc.text(isFR ? 'DETAILS DESTINATAIRE' : 'RECIPIENT / CONSIGNEE DETAILS', 112, y + 4.5);
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...textDark);
-  doc.text(`Name: ${recipient.firstName || ''} ${recipient.lastName || ''}`, 112, y + 12);
+  doc.text(`${isFR ? 'Nom :' : 'Name:'} ${recipient.firstName || ''} ${recipient.lastName || ''}`, 112, y + 12);
   doc.text(`Email: ${recipient.email || 'N/A'}`, 112, y + 17);
-  doc.text(`Phone: ${recipient.phone || 'N/A'}`, 112, y + 22);
-  doc.text(`Destination: ${destTownStr}`, 112, y + 27);
+  doc.text(`${isFR ? 'Tél :' : 'Phone:'} ${recipient.phone || 'N/A'}`, 112, y + 22);
+  doc.text(`${isFR ? 'Arrivée :' : 'Destination:'} ${destTownStr}`, 112, y + 27);
 
   y += 48;
 
   doc.setFontSize(9.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...primaryNavy);
-  doc.text('PACKAGE TECHNICAL SPECIFICATIONS', 14, y);
+  doc.text(isFR ? 'PROPRIÉTÉS TECHNIQUES DU COLIS' : 'PACKAGE TECHNICAL SPECIFICATIONS', 14, y);
 
   y += 5;
 
@@ -187,9 +181,9 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(255, 255, 255);
-  doc.text('Description', 18, y + 4.8);
-  doc.text('Category', 75, y + 4.8);
-  doc.text('Weight', 110, y + 4.8);
+  doc.text(isFR ? 'Description' : 'Description', 18, y + 4.8);
+  doc.text(isFR ? 'Catégorie' : 'Category', 75, y + 4.8);
+  doc.text(isFR ? 'Poids' : 'Weight', 110, y + 4.8);
   doc.text('Volume', 140, y + 4.8);
   doc.text('Dimensions', 165, y + 4.8);
 
@@ -203,7 +197,7 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...textDark);
-  doc.text(freight.description || 'General Freight', 18, y + 5.8);
+  doc.text(freight.description || (isFR ? 'Fret Général' : 'General Freight'), 18, y + 5.8);
   doc.text(freight.goodsType || 'Standard', 75, y + 5.8);
   doc.text(`${freight.weightKg || 0} kg`, 110, y + 5.8);
   doc.text(`${freight.volumeM3 || 0} m3`, 140, y + 5.8);
@@ -214,7 +208,7 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
   doc.setFontSize(9.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(isInsuranceInvoice ? emeraldGreen[0] : primaryNavy[0], isInsuranceInvoice ? emeraldGreen[1] : primaryNavy[1], isInsuranceInvoice ? emeraldGreen[2] : primaryNavy[2]);
-  doc.text(isInsuranceInvoice ? 'INSURANCE POLICY COVERAGE & SETTLEMENT DETAILS' : 'FREIGHT SHIPPING FINANCIAL SETTLEMENT SUMMARY', 14, y);
+  doc.text(isInsuranceInvoice ? (isFR ? "DÉTAILS COUVERTURE POLICE D'ASSURANCE" : 'INSURANCE POLICY COVERAGE & SETTLEMENT DETAILS') : (isFR ? 'RÉCAPITULATIF FINANCIER DU FRET' : 'FREIGHT SHIPPING FINANCIAL SETTLEMENT SUMMARY'), 14, y);
 
   y += 5;
 
@@ -224,10 +218,10 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 255, 255);
-    doc.text('Insured Cargo Item', 18, y + 4.8);
-    doc.text('Declared Value', 80, y + 4.8);
-    doc.text('Coverage Amount', 120, y + 4.8);
-    doc.text('Insurance Fee', 160, y + 4.8);
+    doc.text(isFR ? 'Article Assuré' : 'Insured Cargo Item', 18, y + 4.8);
+    doc.text(isFR ? 'Valeur Déclarée' : 'Declared Value', 80, y + 4.8);
+    doc.text(isFR ? 'Couverture' : 'Coverage Amount', 120, y + 4.8);
+    doc.text(isFR ? "Frais d'Assurance" : 'Insurance Fee', 160, y + 4.8);
 
     y += 7;
 
@@ -240,19 +234,34 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...textDark);
     doc.text(freight.description || 'Insured Cargo', 18, y + 5.8);
-    doc.text(`$${(freight.declaredValue || 0).toLocaleString()}`, 80, y + 5.8);
-    doc.text(`$${(freight.declaredValue || 0).toLocaleString()}`, 120, y + 5.8);
-    doc.text(`$${(freight.insuranceAmount || 0).toLocaleString()}`, 160, y + 5.8);
+    doc.text(formatCurrencyPDF(freight.declaredValue), 80, y + 5.8);
+    doc.text(formatCurrencyPDF(freight.declaredValue), 120, y + 5.8);
+    doc.text(formatCurrencyPDF(freight.insuranceAmount), 160, y + 5.8);
+
+    // Mandatory Insurance Payment Notice Box on PDF
+    y += 15;
+    doc.setFillColor(254, 242, 242);
+    doc.setDrawColor(252, 165, 165);
+    doc.rect(14, y, 182, 11, 'F');
+    doc.rect(14, y, 182, 11, 'S');
+
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(185, 28, 28);
+    doc.text(isFR ? "STIPULATION DE PAIEMENT OBLIGATOIRE DE L'ASSURANCE :" : 'MANDATORY INSURANCE POLICY PAYMENT STIPULATION:', 18, y + 4.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(153, 27, 27);
+    doc.text(isFR ? "Le règlement de l'assurance est obligatoire. Sans paiement, le statut reste EN ATTENTE." : 'Insurance fee settlement is required. If the insurance fee is not paid, shipment status will remain strictly PENDING.', 18, y + 8.5);
   } else {
-    // Freight Shipping Invoice (PURE FREIGHT - ZERO STATUS / INSURANCE MENTIONS)
+    // Freight Shipping Invoice
     doc.setFillColor(...primaryNavy);
     doc.rect(14, y, 182, 7, 'F');
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 255, 255);
-    doc.text('Line Item Description', 18, y + 4.8);
-    doc.text('Base Shipping Freight Fee ($)', 100, y + 4.8);
-    doc.text('Fee Status', 160, y + 4.8);
+    doc.text(isFR ? 'Description de la Ligne' : 'Line Item Description', 18, y + 4.8);
+    doc.text(isFR ? 'Frais Fret de Base' : 'Base Shipping Freight Fee', 100, y + 4.8);
+    doc.text(isFR ? 'Statut Frais' : 'Fee Status', 160, y + 4.8);
 
     y += 7;
 
@@ -264,9 +273,9 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...textDark);
-    doc.text('Base Shipping Freight & Logistics Fee', 18, y + 5.8);
-    doc.text(`$${(freight.shippingFee || 0).toLocaleString()}`, 100, y + 5.8);
-    doc.text((freight.shippingFeeStatus || 'Paid').toUpperCase(), 160, y + 5.8);
+    doc.text(isFR ? 'Frais de Fret & Logistique Expédition de Base' : 'Base Shipping Freight & Logistics Fee', 18, y + 5.8);
+    doc.text(formatCurrencyPDF(freight.shippingFee), 100, y + 5.8);
+    doc.text((freight.shippingFeeStatus || (isFR ? 'Payé' : 'Paid')).toUpperCase(), 160, y + 5.8);
   }
 
   doc.setDrawColor(...borderLight);

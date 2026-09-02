@@ -6,10 +6,13 @@ import {
   Mail, 
   Truck,
   Menu,
-  X
+  X,
+  Globe
 } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function Navbar() {
+  const { lang, setLang, t } = useLanguage();
   const [activeNav, setActiveNav] = useState('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -54,7 +57,7 @@ export default function Navbar() {
               <span style={{ color: 'var(--primary-cyan)' }}>PULSE</span>
             </h1>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '2px 0 0 0', fontStyle: 'italic' }}>
-              Precision tracking, effortless delivery.
+              {lang === 'fr' ? 'Suivi de précision, livraison sans effort.' : 'Precision tracking, effortless delivery.'}
             </p>
           </div>
         </div>
@@ -78,7 +81,7 @@ export default function Navbar() {
               fontSize: '0.88rem'
             }}
           >
-            <Home size={15} /> HOME
+            <Home size={15} /> {t('nav_home').toUpperCase()}
           </button>
 
           <button
@@ -97,7 +100,7 @@ export default function Navbar() {
               fontSize: '0.88rem'
             }}
           >
-            <PackageSearch size={15} /> TRACK
+            <PackageSearch size={15} /> {t('nav_client_portal').toUpperCase()}
           </button>
 
           <button
@@ -116,26 +119,7 @@ export default function Navbar() {
               fontSize: '0.88rem'
             }}
           >
-            <Truck size={15} /> HOW TO SHIP
-          </button>
-
-          <button
-            onClick={() => scrollToSection('about')}
-            style={{
-              background: activeNav === 'about' ? 'var(--primary-navy)' : 'transparent',
-              color: activeNav === 'about' ? '#FFFFFF' : 'var(--text-main)',
-              fontWeight: 700,
-              padding: '8px 16px',
-              borderRadius: 'var(--radius-sm)',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.88rem'
-            }}
-          >
-            <Info size={15} /> ABOUT US
+            <Truck size={15} /> {t('nav_fleet').toUpperCase()}
           </button>
 
           <button
@@ -154,31 +138,96 @@ export default function Navbar() {
               fontSize: '0.88rem'
             }}
           >
-            <Mail size={15} /> CONTACT US
+            <Mail size={15} /> {t('nav_contact').toUpperCase()}
           </button>
+
+          {/* Interactive Global Language Switcher Toggle */}
+          <div style={{ display: 'flex', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: 'var(--radius-full)', padding: '2px', marginLeft: '12px' }}>
+            <button
+              onClick={() => setLang('en')}
+              style={{
+                background: lang === 'en' ? 'var(--primary-navy)' : 'transparent',
+                color: lang === 'en' ? '#FFFFFF' : '#475569',
+                border: 'none',
+                borderRadius: 'var(--radius-full)',
+                padding: '4px 10px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              🇬🇧 EN
+            </button>
+
+            <button
+              onClick={() => setLang('fr')}
+              style={{
+                background: lang === 'fr' ? '#059669' : 'transparent',
+                color: lang === 'fr' ? '#FFFFFF' : '#475569',
+                border: 'none',
+                borderRadius: 'var(--radius-full)',
+                padding: '4px 10px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              🇫🇷 FR
+            </button>
+          </div>
 
         </nav>
 
-        {/* Mobile Hamburger Toggle Button */}
-        <button
-          className="mobile-menu-toggle"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label="Toggle Navigation Menu"
-          style={{
-            background: '#F1F5F9',
-            border: '1px solid #CBD5E1',
-            borderRadius: 'var(--radius-sm)',
-            width: '44px',
-            height: '44px',
-            display: 'flex',
-            alignItems: 'center',
-            justify: 'center',
-            cursor: 'pointer',
-            color: 'var(--primary-navy)'
-          }}
-        >
-          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        {/* Mobile Controls (Language + Hamburger) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Mobile Language Switcher Pill */}
+          <div className="mobile-menu-toggle" style={{ display: 'flex', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: 'var(--radius-full)', padding: '2px' }}>
+            <button
+              onClick={() => setLang(lang === 'en' ? 'fr' : 'en')}
+              style={{
+                background: 'var(--primary-navy)',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: 'var(--radius-full)',
+                padding: '4px 10px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <Globe size={13} /> {lang.toUpperCase()}
+            </button>
+          </div>
+
+          <button
+            className="mobile-menu-toggle"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle Navigation Menu"
+            style={{
+              background: '#F1F5F9',
+              border: '1px solid #CBD5E1',
+              borderRadius: 'var(--radius-sm)',
+              width: '44px',
+              height: '44px',
+              display: 'flex',
+              alignItems: 'center',
+              justify: 'center',
+              cursor: 'pointer',
+              color: 'var(--primary-navy)'
+            }}
+          >
+            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
 
       </div>
 
@@ -205,7 +254,7 @@ export default function Navbar() {
               fontSize: '1rem'
             }}
           >
-            <Home size={18} /> HOME
+            <Home size={18} /> {t('nav_home').toUpperCase()}
           </button>
 
           <button
@@ -219,7 +268,7 @@ export default function Navbar() {
               fontSize: '1rem'
             }}
           >
-            <PackageSearch size={18} /> TRACK CARGO
+            <PackageSearch size={18} /> {t('nav_client_portal').toUpperCase()}
           </button>
 
           <button
@@ -233,21 +282,7 @@ export default function Navbar() {
               fontSize: '1rem'
             }}
           >
-            <Truck size={18} /> HOW TO SHIP
-          </button>
-
-          <button
-            onClick={() => scrollToSection('about')}
-            className="btn-secondary"
-            style={{
-              justify: 'flex-start',
-              background: activeNav === 'about' ? 'var(--primary-navy)' : '#FFFFFF',
-              color: activeNav === 'about' ? '#FFFFFF' : 'var(--text-main)',
-              padding: '12px 16px',
-              fontSize: '1rem'
-            }}
-          >
-            <Info size={18} /> ABOUT US
+            <Truck size={18} /> {t('nav_fleet').toUpperCase()}
           </button>
 
           <button
@@ -259,7 +294,7 @@ export default function Navbar() {
               fontSize: '1rem'
             }}
           >
-            <Mail size={18} /> CONTACT US
+            <Mail size={18} /> {t('nav_contact').toUpperCase()}
           </button>
         </div>
       )}

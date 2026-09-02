@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShipmentProvider } from './context/ShipmentContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { LanguageProvider } from './context/LanguageContext';
 import Navbar from './components/Navbar';
 import ClientLanding from './components/ClientLanding';
 import AdminDashboard from './components/AdminDashboard';
@@ -67,10 +68,12 @@ function MainApp() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ShipmentProvider>
-        <MainApp />
-      </ShipmentProvider>
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <ShipmentProvider>
+          <MainApp />
+        </ShipmentProvider>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }

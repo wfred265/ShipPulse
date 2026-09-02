@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { X, Edit3, Package, Send, UserCheck, Truck, Plane, Ship, Bus, CreditCard, Save, Globe, AlertTriangle } from 'lucide-react';
 import { useShipments } from '../context/ShipmentContext';
+import { useLanguage } from '../context/LanguageContext';
 import LocationAutocompleteInput from './LocationAutocompleteInput';
 import { formatTownLocationString, resolveCoords, isValidWorldwideLocation } from '../utils/geo';
 
 export default function ShipmentEditModal({ shipment, onClose }) {
+  const { lang, currencySymbol } = useLanguage();
   const { updateShipment } = useShipments();
   const [locationValidationError, setLocationValidationError] = useState('');
 
@@ -343,15 +345,15 @@ export default function ShipmentEditModal({ shipment, onClose }) {
 
               <div className="grid-3">
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Declared Value ($)</label>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Declared Value ({currencySymbol})</label>
                   <input type="number" className="glass-input" value={formData.freight.declaredValue} onChange={e => setFormData({ ...formData, freight: { ...formData.freight, declaredValue: parseFloat(e.target.value) || 0 } })} />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Shipping Freight Fee ($)</label>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Shipping Freight Fee ({currencySymbol})</label>
                   <input type="number" className="glass-input" value={formData.freight.shippingFee} onChange={e => setFormData({ ...formData, freight: { ...formData.freight, shippingFee: parseFloat(e.target.value) || 0 } })} />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Insurance Coverage ($)</label>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Insurance Coverage ({currencySymbol})</label>
                   <input type="number" className="glass-input" value={formData.freight.insuranceAmount} onChange={e => setFormData({ ...formData, freight: { ...formData.freight, insuranceAmount: parseFloat(e.target.value) || 0 } })} />
                 </div>
               </div>

@@ -10,8 +10,11 @@ import {
   ShieldCheck,
   Package
 } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function Footer() {
+  const { lang, t } = useLanguage();
+
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId);
     if (element) {
@@ -45,37 +48,37 @@ export default function Footer() {
             </h2>
           </div>
           <p style={{ color: '#94A3B8', fontSize: '0.88rem', lineHeight: '1.6', marginBottom: '16px' }}>
-            Precision tracking and multi-modal logistics management. Real-time GPS telemetry for high-value cargo transport.
+            {t('footer_tagline')}
           </p>
           <div style={{ color: 'var(--primary-cyan)', fontSize: '0.85rem', fontWeight: 600 }}>
-            Executive HQ: 44 Wall St, New York, NY 10005
+            {lang === 'fr' ? 'Siège Exécutif : 44 Wall St, New York, NY 10005' : 'Executive HQ: 44 Wall St, New York, NY 10005'}
           </div>
         </div>
 
         {/* Column 2: Quick Links */}
         <div>
           <h3 style={{ fontSize: '1.1rem', color: '#FFFFFF', marginBottom: '16px', borderBottom: '2px solid var(--primary-cyan)', paddingBottom: '6px', display: 'inline-block' }}>
-            Quick Navigation
+            {t('footer_quick_links')}
           </h3>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.9rem' }}>
             <li>
               <button onClick={() => scrollToSection('home')} style={{ background: 'none', border: 'none', color: '#CBD5E1', cursor: 'pointer', padding: 0, font: 'inherit' }}>
-                Home & Live Tracking
+                {t('nav_home')} & {t('nav_client_portal')}
               </button>
             </li>
             <li>
               <button onClick={() => scrollToSection('how-to-ship')} style={{ background: 'none', border: 'none', color: '#CBD5E1', cursor: 'pointer', padding: 0, font: 'inherit' }}>
-                How to Ship Guide
+                {t('nav_fleet')}
               </button>
             </li>
             <li>
               <button onClick={() => scrollToSection('about')} style={{ background: 'none', border: 'none', color: '#CBD5E1', cursor: 'pointer', padding: 0, font: 'inherit' }}>
-                About ShipPulse Headquarters
+                {t('nav_features')}
               </button>
             </li>
             <li>
               <button onClick={() => scrollToSection('contact')} style={{ background: 'none', border: 'none', color: '#CBD5E1', cursor: 'pointer', padding: 0, font: 'inherit' }}>
-                Contact Support Desk
+                {t('nav_contact')}
               </button>
             </li>
           </ul>
@@ -84,7 +87,7 @@ export default function Footer() {
         {/* Column 3: Contact & Support */}
         <div>
           <h3 style={{ fontSize: '1.1rem', color: '#FFFFFF', marginBottom: '16px', borderBottom: '2px solid var(--primary-cyan)', paddingBottom: '6px', display: 'inline-block' }}>
-            Operations Support
+            {t('footer_support')}
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.9rem' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: '#CBD5E1' }}>
@@ -97,10 +100,10 @@ export default function Footer() {
                 track.shippulse@gmail.com
               </a>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#CBD5E1' }}>
+            <li style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#CBD5E1', listStyle: 'none' }}>
               <Phone size={18} color="var(--primary-cyan)" style={{ flexShrink: 0 }} />
-              <span>+1 (212) 555-0198 (24/7 Dispatch)</span>
-            </div>
+              <span>+1 (929) 315-6218 ({lang === 'fr' ? 'Support 24/7' : '24/7 Dispatch'})</span>
+            </li>
           </div>
         </div>
 
@@ -119,9 +122,9 @@ export default function Footer() {
         color: '#94A3B8',
         fontSize: '0.78rem'
       }}>
-        <div>&copy; {new Date().getFullYear()} ShipPulse Logistics Inc. All rights reserved.</div>
+        <div>&copy; {new Date().getFullYear()} {t('footer_rights')}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          Built with <Heart size={13} color="#FF3366" fill="#FF3366" /> for precision tracking.
+          {lang === 'fr' ? 'Conçu avec' : 'Built with'} <Heart size={13} color="#FF3366" fill="#FF3366" /> {lang === 'fr' ? 'pour le suivi de précision.' : 'for precision tracking.'}
         </div>
       </div>
     </footer>

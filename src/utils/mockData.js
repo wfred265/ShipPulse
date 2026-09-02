@@ -2,7 +2,8 @@ import { getCityCoords, interpolatePosition } from './geo.js';
 
 export const INITIAL_SHIPMENTS = [
   {
-    id: "SP-88219",
+    id: "SP-88219U",
+    region: "USA",
     transportMode: "airplane",
     status: "In Transit",
     originCity: "Plattsburgh, NY",
@@ -25,7 +26,7 @@ export const INITIAL_SHIPMENTS = [
       lastName: "Vance",
       company: "Apex Tech Industries Inc.",
       email: "a.vance@apextech.com",
-      phone: "+1 (212) 555-0198",
+      phone: "+1 (929) 315-6218",
       address: "44 Wall St, New York, NY 10005, USA",
       idDocument: "US-PASSPORT-982144A"
     },
@@ -61,7 +62,8 @@ export const INITIAL_SHIPMENTS = [
   },
   
   {
-    id: "SP-44102",
+    id: "SP-44102E",
+    region: "EUROPE",
     transportMode: "boat",
     status: "Payment Pending",
     originCity: "Rotterdam",
@@ -113,12 +115,13 @@ export const INITIAL_SHIPMENTS = [
     },
     
     timeline: [
-      { id: 1, timestamp: "2026-08-22 09:00", location: "Rotterdam Port Terminal", title: "Manifest Generated - Awaiting Insurance Settlement", status: "current" }
+      { id: 1, timestamp: "2026-08-22 09:00", location: "Rotterdam Port Terminal", title: "Manifeste Généré - En Attente d'Assurance", status: "current" }
     ]
   },
 
   {
-    id: "SP-90155",
+    id: "SP-90155E",
+    region: "EUROPE",
     transportMode: "truck",
     status: "In Transit",
     originCity: "Berlin",
@@ -170,9 +173,9 @@ export const INITIAL_SHIPMENTS = [
     },
     
     timeline: [
-      { id: 1, timestamp: "2026-08-23 01:00", location: "Berlin Logistics Center", title: "Departed Cold Storage Depot", status: "completed" },
-      { id: 2, timestamp: "2026-08-23 07:30", location: "Frankfurt Hub", title: "Border Customs Clearance Passed", status: "completed" },
-      { id: 3, timestamp: "2026-08-23 11:00", location: "Southern France Highway A9", title: "In Transit towards Pyrenees Pass", status: "current" }
+      { id: 1, timestamp: "2026-08-23 01:00", location: "Berlin Logistics Center", title: "Départ du Centre Logistique", status: "completed" },
+      { id: 2, timestamp: "2026-08-23 07:30", location: "Frankfurt Hub", title: "Dédouanement Effectué", status: "completed" },
+      { id: 3, timestamp: "2026-08-23 11:00", location: "Autoroute A9 France Sud", title: "En Transit vers les Pyrénées", status: "current" }
     ]
   }
 ];

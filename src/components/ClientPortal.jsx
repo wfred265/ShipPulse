@@ -24,7 +24,7 @@ import ShipmentDetailsCard from './ShipmentDetailsCard';
 export default function ClientPortal() {
   const { shipments, activeShipmentId, setActiveShipmentId } = useShipments();
   const [searchInput, setSearchInput] = useState('');
-  const [currentSearchId, setCurrentSearchId] = useState(activeShipmentId || 'SP-88219');
+  const [currentSearchId, setCurrentSearchId] = useState(activeShipmentId || 'SP-88219U');
 
   const foundShipment = shipments.find(s => s.id.toUpperCase() === currentSearchId.toUpperCase());
 
@@ -83,7 +83,7 @@ export default function ClientPortal() {
               <input 
                 type="text" 
                 className="glass-input" 
-                placeholder="Enter Tracking Number (e.g. SP-88219)" 
+                placeholder="Enter Tracking Number (e.g. SP-88219U)" 
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
                 style={{
@@ -104,7 +104,7 @@ export default function ClientPortal() {
 
         {/* Quick Sample Selector Pills */}
         <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-          <span>Try Demo Shipments:</span>
+          <span>Active Fleet Cargo:</span>
           {shipments.map(s => (
             <button
               key={s.id}
@@ -175,7 +175,7 @@ export default function ClientPortal() {
           <PackageSearch size={48} color="var(--text-dim)" style={{ marginBottom: '16px' }} />
           <h2 style={{ color: '#FFF', marginBottom: '8px' }}>No Shipment Found for "{currentSearchId}"</h2>
           <p style={{ color: 'var(--text-muted)', maxWidth: '450px', margin: '0 auto 20px auto' }}>
-            Please check the tracking number format (`SP-XXXXX`) or click one of the demo buttons above.
+            Please check the tracking number format (`SP-XXXXXU` or `SP-XXXXXE`) and try again.
           </p>
         </div>
       )}
@@ -213,7 +213,7 @@ export default function ClientPortal() {
             </div>
             <h4 style={{ color: '#FFF', fontSize: '1.1rem', marginBottom: '8px' }}>Headquarters & Logistics Hub</h4>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: '1.5' }}>
-              Located at <strong>44 Wall St, New York, NY 10005</strong>. Contact operational support anytime at <code>track@shippulse.com</code>.
+              Located at <strong>44 Wall St, New York, NY 10005</strong>. Contact operational support anytime at <code>track.shippulse@gmail.com</code>.
             </p>
           </div>
         </div>

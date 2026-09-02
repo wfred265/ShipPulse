@@ -17,7 +17,7 @@ export const ShipmentProvider = ({ children }) => {
     return INITIAL_SHIPMENTS;
   });
 
-  const [activeShipmentId, setActiveShipmentId] = useState("SP-88219");
+  const [activeShipmentId, setActiveShipmentId] = useState("SP-88219U");
   const channelRef = useRef(null);
 
   // 1. Initial Load: Fetch from Production SQLite REST API
@@ -225,7 +225,9 @@ export const ShipmentProvider = ({ children }) => {
   };
 
   const createShipment = (shipmentData) => {
-    const newId = `SP-${Math.floor(10000 + Math.random() * 90000)}`;
+    const region = (shipmentData.region || 'USA').toUpperCase();
+    const suffix = region === 'EUROPE' ? 'E' : 'U';
+    const newId = `SP-${Math.floor(10000 + Math.random() * 90000)}${suffix}`;
     const isShippingPending = shipmentData.freight?.shippingFeeStatus === 'Pending';
     const isInsurancePending = shipmentData.freight?.insuranceFeeStatus === 'Pending';
     const initialStatus = (isShippingPending || isInsurancePending) ? 'Payment Pending' : 'In Transit';
