@@ -695,7 +695,17 @@ export default function ClientLanding() {
                     {lang === 'fr' ? 'Expédition' : 'Shipment'} {activeTrackingShipment.id}
                   </h2>
                   <span className={`badge ${activeTrackingShipment.isPaused ? 'badge-paused' : (activeTrackingShipment.status === 'Delivered' ? 'badge-paid' : (activeTrackingShipment.status === 'Payment Pending' ? 'badge-pending' : 'badge-transit'))}`}>
-                    {activeTrackingShipment.isPaused ? (lang === 'fr' ? 'EN PAUSE' : 'PAUSED') : activeTrackingShipment.status}
+                    {activeTrackingShipment.isPaused
+                      ? (lang === 'fr' ? 'EN PAUSE' : 'PAUSED')
+                      : activeTrackingShipment.status === 'Payment Pending'
+                        ? (lang === 'fr' ? 'PAIEMENT EN ATTENTE' : 'PAYMENT PENDING')
+                        : activeTrackingShipment.status === 'In Transit'
+                          ? (lang === 'fr' ? 'EN TRANSIT' : 'IN TRANSIT')
+                          : activeTrackingShipment.status === 'Delivered'
+                            ? (lang === 'fr' ? 'LIVRÉ' : 'DELIVERED')
+                            : activeTrackingShipment.status === 'Cancelled'
+                              ? (lang === 'fr' ? 'ANNULÉ' : 'CANCELLED')
+                              : activeTrackingShipment.status}
                   </span>
                 </div>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '4px 0 0 0' }}>

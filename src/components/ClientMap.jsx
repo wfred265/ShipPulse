@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import L from 'leaflet';
 import { AlertTriangle, Clock, MapPin, Truck, Plane, Ship, Bus } from 'lucide-react';
 import { formatTownLocationString } from '../utils/geo';
+import { getShipmentRegionConfig } from '../utils/regionUtils';
 
 import 'leaflet/dist/leaflet.css';
 
@@ -70,6 +71,10 @@ function MapBoundsFitter({ originCoords, destCoords }) {
 export default function ClientMap({ shipment }) {
   if (!shipment) return null;
 
+  // Determine language based on shipment region (EUROPE = FR, USA = EN)
+  const regionConfig = getShipmentRegionConfig(shipment);
+  const isFR = regionConfig.lang === 'fr';
+
   const {
     id,
     originCoords,
@@ -87,8 +92,8 @@ export default function ClientMap({ shipment }) {
     freight = {}
   } = shipment;
 
-  const originTownStr = formatTownLocationString(originLocation) || originCity || "Departure Point";
-  const destTownStr = formatTownLocationString(destLocation) || destinationCity || "Destination Point";
+  const originTownStr = formatTownLocationString(originLocation) || originCity || (isFR ? "Point de Départ" : "Departure Point");
+  const destTownStr = formatTownLocationString(destLocation) || destinationCity || (isFR ? "Point d'Arrivée" : "Destination Point");
 
   const vehicleIcon = createCustomIcon(
     getTransportEmoji(transportMode), 
@@ -108,10 +113,15 @@ export default function ClientMap({ shipment }) {
           <AlertTriangle size={24} color="#FFFFFF" style={{ flexShrink: 0 }} />
           <div>
             <div style={{ fontSize: '1rem', fontWeight: 800 }}>
-              PAUSED IN TRANSIT - OFFICIAL TELEMETRY ALERT
+              {isFR
+                ? 'TRANSIT SUSPENDU — ALERTE TÉLÉMÉTRIE OFFICIELLE'
+                : 'PAUSED IN TRANSIT — OFFICIAL TELEMETRY ALERT'}
             </div>
             <div style={{ fontSize: '0.85rem', opacity: 0.95 }}>
-              Reason: {pauseReason || "Carrier vehicle held for administrative inspection and safety verification."}
+              {isFR ? 'Motif :' : 'Reason:'}{' '}
+              {pauseReason || (isFR
+                ? "Véhicule transporteur immobilisé pour inspection administrative et vérification de sécurité."
+                : "Carrier vehicle held for administrative inspection and safety verification.")}
             </div>
           </div>
         </div>
@@ -133,9 +143,15 @@ export default function ClientMap({ shipment }) {
         }}>
           <Clock size={22} color="#F59E0B" />
           <div>
-            <div>HOLD AT DEPARTURE ({originTownStr})</div>
+            <div>
+              {isFR
+                ? `EN ATTENTE AU DÉPART (${originTownStr})`
+                : `HOLD AT DEPARTURE (${originTownStr})`}
+            </div>
             <div style={{ fontSize: '0.85rem', fontWeight: 500 }}>
-              Payment status is Pending. Fee settlement must be completed before transit to {destTownStr} initiates.
+              {isFR
+                ? `Paiement en attente. Le règlement des frais doit être effectué avant le départ vers ${destTownStr}.`
+                : `Payment status is Pending. Fee settlement must be completed before transit to ${destTownStr} initiates.`}
             </div>
           </div>
         </div>
@@ -177,7 +193,9 @@ export default function ClientMap({ shipment }) {
           <Marker position={originCoords} icon={originIcon}>
             <Popup>
               <div style={{ textAlign: 'center' }}>
-                <strong style={{ color: 'var(--primary-navy)', fontSize: '0.95rem' }}>🚩 Departure Origin</strong>
+                <strong style={{ color: 'var(--primary-navy)', fontSize: '0.95rem' }}>
+                  🚩 {isFR ? 'Point de Départ' : 'Departure Origin'}
+                </strong>
                 <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: '#475569' }}>
                   {originTownStr}
                 </p>
@@ -189,7 +207,9 @@ export default function ClientMap({ shipment }) {
           <Marker position={destCoords} icon={destIcon}>
             <Popup>
               <div style={{ textAlign: 'center' }}>
-                <strong style={{ color: '#059669', fontSize: '0.95rem' }}>🏁 Destination Arrival</strong>
+                <strong style={{ color: '#059669', fontSize: '0.95rem' }}>
+                  🏁 {isFR ? "Point d'Arrivée" : 'Destination Arrival'}
+                </strong>
                 <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: '#475569' }}>
                   {destTownStr}
                 </p>
@@ -202,16 +222,16 @@ export default function ClientMap({ shipment }) {
             <Popup>
               <div style={{ textAlign: 'center', minWidth: '180px' }}>
                 <div className="badge badge-transit" style={{ marginBottom: '6px', display: 'inline-block' }}>
-                  {getTransportEmoji(transportMode)} Live Carrier Telemetry
+                  {getTransportEmoji(transportMode)} {isFR ? 'Télémétrie Transporteur' : 'Live Carrier Telemetry'}
                 </div>
                 <h4 style={{ margin: '2px 0', color: 'var(--primary-navy)' }}>
-                  Shipment {id}
+                  {isFR ? 'Expédition' : 'Shipment'} {id}
                 </h4>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  Progress: <strong>{progressPercentage}%</strong>
+                  {isFR ? 'Progression :' : 'Progress:'} <strong>{progressPercentage}%</strong>
                 </div>
                 <div style={{ fontSize: '0.8rem', color: '#64748B', marginTop: '4px' }}>
-                  En route: {originTownStr} &rarr; {destTownStr}
+                  {isFR ? 'En route :' : 'En route:'} {originTownStr} &rarr; {destTownStr}
                 </div>
               </div>
             </Popup>
