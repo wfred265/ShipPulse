@@ -1,9 +1,14 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import db, { initDatabase } from './db.js';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -14,6 +19,10 @@ app.use(express.json({ limit: '10mb' }));
 
 // Initialize SQLite database
 initDatabase();
+
+// Serve Static Production Frontend Assets if built
+const distPath = path.join(__dirname, '../dist');
+app.use(express.static(distPath));
 
 // ------------------------------------
 // 1. SHIPMENTS REST API ENDPOINTS
@@ -94,7 +103,7 @@ app.put('/api/shipments/:id', (req, res) => {
   }
 });
 
-// DELETE /api/shipments/:id - Delete shipment
+// DELETE /api/shipments/:id - Delete shipment from SQLite database
 app.delete('/api/shipments/:id', (req, res) => {
   try {
     const trackingId = req.params.id;
@@ -166,6 +175,15 @@ app.delete('/api/users/:id', (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// Catch-all SPA fallback for non-API routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'), (err) => {
+    if (err) {
+      res.status(404).send('ShipPulse Frontend build not found. Run npm run build first.');
+    }
+  });
 });
 
 // Start Server

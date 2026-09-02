@@ -198,8 +198,8 @@ export const translations = {
     inv_declared_value: "Declared Cargo Goods Value",
     inv_insured_cargo_item: "Insured Cargo Item",
     inv_insurance_fee: "Insurance Policy Coverage Fee",
-    inv_insurance_notice_title: "MANDATORY INSURANCE POLICY PAYMENT STIPULATION",
-    inv_insurance_notice_text: "Please be advised that insurance policy coverage fee settlement is mandatory. If the insurance coverage fee is not paid, the shipment status will remain strictly PENDING.",
+    inv_insurance_notice_title: "Notice – Insurance Fees",
+    inv_insurance_notice_text: "Payment of insurance fees is required to finalize the shipment. If payment is not made, the shipment status will remain \"PENDING\" and delivery will be suspended.",
     inv_legal_statement: "This document is electronically verified and issued by ShipPulse Operational Control. Valid for customs clearance & cargo auditing.",
     inv_verified_stamp: "Verified Manifest",
 
@@ -408,8 +408,8 @@ export const translations = {
     inv_declared_value: "Valeur Déclarée de la Marchandise",
     inv_insured_cargo_item: "Article de Fret Assuré",
     inv_insurance_fee: "Frais de Couverture d'Assurance",
-    inv_insurance_notice_title: "STIPULATION DE PAIEMENT OBLIGATOIRE DE L'ASSURANCE",
-    inv_insurance_notice_text: "Veuillez noter que le règlement des frais de police d'assurance est obligatoire. Si les frais d'assurance ne sont pas payés, le statut de l'expédition restera strictly EN ATTENTE.",
+    inv_insurance_notice_title: "Avis – Frais d'Assurance",
+    inv_insurance_notice_text: "Le règlement des frais d'assurance est obligatoire pour finaliser l'expédition. Si le paiement n'est pas effectué, le statut de l'expédition restera « EN ATTENTE » et la livraison sera suspendue.",
     inv_legal_statement: "Ce document est vérifié électroniquement et émis par le Contrôle Opérationnel ShipPulse. Valide pour le dédouanement et l'audit de fret.",
     inv_verified_stamp: "Manifeste Vérifié",
 

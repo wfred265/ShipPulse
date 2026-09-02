@@ -248,10 +248,10 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(185, 28, 28);
-    doc.text(isFR ? "STIPULATION DE PAIEMENT OBLIGATOIRE DE L'ASSURANCE :" : 'MANDATORY INSURANCE POLICY PAYMENT STIPULATION:', 18, y + 4.5);
+    doc.text(isFR ? "Avis – Frais d'Assurance :" : 'Notice – Insurance Fees:', 18, y + 4.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(153, 27, 27);
-    doc.text(isFR ? "Le règlement de l'assurance est obligatoire. Sans paiement, le statut reste EN ATTENTE." : 'Insurance fee settlement is required. If the insurance fee is not paid, shipment status will remain strictly PENDING.', 18, y + 8.5);
+    doc.text(isFR ? "Le règlement des frais d'assurance est obligatoire pour finaliser l'expédition. Si le paiement n'est pas effectué, le statut restera « EN ATTENTE » et la livraison sera suspendue." : 'Payment of insurance fees is required to finalize the shipment. If payment is not made, the shipment status will remain "PENDING" and delivery will be suspended.', 18, y + 8.5);
   } else {
     // Freight Shipping Invoice
     doc.setFillColor(...primaryNavy);
