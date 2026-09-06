@@ -177,13 +177,16 @@ app.delete('/api/users/:id', (req, res) => {
   }
 });
 
-// Catch-all SPA fallback for non-API routes
-app.get('*', (req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'), (err) => {
-    if (err) {
-      res.status(404).send('ShipPulse Frontend build not found. Run npm run build first.');
-    }
-  });
+// Catch-all SPA fallback for non-API GET routes
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.startsWith('/api')) {
+    return res.sendFile(path.join(distPath, 'index.html'), (err) => {
+      if (err) {
+        res.status(404).send('ShipPulse Frontend build not found. Run npm run build first.');
+      }
+    });
+  }
+  next();
 });
 
 // Start Server

@@ -104,7 +104,7 @@ export const translations = {
     faq4_q: "What happens if a shipment is temporarily held or paused?",
     faq4_a: "If a carrier vehicle is paused due to customs clearance, mandatory crew rest, or safety checks, a red alert notification immediately appears on your tracking screen with the official explanation.",
     faq5_q: "Where is the ShipPulse executive headquarters located?",
-    faq5_a: "Our global headquarters desk is located at 44 Wall St, New York, NY 10005, USA. You can contact our operations support team anytime at track.shippulse@gmail.com.",
+    faq5_a: "Our global headquarters desk is located at 44 Wall St, New York, NY 10005, USA. You can contact our operations support team anytime at customershippulse@gmail.com.",
 
     // Contact Section
     contact_badge: "Operational Contact Desk",
@@ -120,7 +120,7 @@ export const translations = {
     contact_msg_label: "Message *",
     contact_msg_ph: "Provide shipment weight, route, and cargo details...",
     contact_submit_btn: "Submit Message",
-    contact_success_msg: "✓ Thank you! Your inquiry has been sent to track.shippulse@gmail.com. An operational specialist will reply shortly.",
+    contact_success_msg: "✓ Thank you! Your inquiry has been sent to customershippulse@gmail.com. An operational specialist will reply shortly.",
     contact_hq_title: "Executive Headquarters",
     contact_email_title: "Direct Email Contact",
     contact_email_desc: "General & Freight Support:",
@@ -175,7 +175,7 @@ export const translations = {
     inv_ref: "Invoice Ref:",
     inv_tracking_id: "Tracking ID:",
     inv_issued_date: "Issued Date:",
-    inv_hq: "HQ: 44 Wall St, New York, NY 10005, USA • Email: track.shippulse@gmail.com",
+    inv_hq: "HQ: 44 Wall St, New York, NY 10005, USA • Email: customershippulse@gmail.com",
     inv_doc_type: "Official Authorized Logistics Document",
     inv_route: "OFFICIAL ROUTE:",
     inv_mode: "MODE:",
@@ -202,6 +202,11 @@ export const translations = {
     inv_insurance_notice_text: "Payment of insurance fees is required to finalize the shipment. If payment is not made, the shipment status will remain \"PENDING\" and delivery will be suspended.",
     inv_legal_statement: "This document is electronically verified and issued by ShipPulse Operational Control. Valid for customs clearance & cargo auditing.",
     inv_verified_stamp: "Verified Manifest",
+    inv_departure_date: "Departure Date:",
+    inv_departure_time: "Journey Start Time:",
+    inv_est_arrival_date: "Estimated Arrival Date:",
+    inv_duration: "Transit Duration:",
+    inv_hide_insurance_option: "Hide Insurance Fee on Client Tracking View",
 
     // Footer
     footer_tagline: "Global cargo operations control & real-time telemetry network.",
@@ -314,7 +319,7 @@ export const translations = {
     faq4_q: "Que se passe-t-il si une expédition est mise en pause ou suspendue ?",
     faq4_a: "Si un véhicule est suspendu en raison du dédouanement, du repos obligatoire de l'équipage ou de contrôles de sécurité, une alerte rouge apparaît immédiatement sur l'écran de suivi avec le motif officiel.",
     faq5_q: "Où se trouve le siège social exécutif de ShipPulse ?",
-    faq5_a: "Notre siège mondial se trouve au 44 Wall St, New York, NY 10005, USA. Vous pouvez contacter notre support opérationnel à tout moment à track.shippulse@gmail.com.",
+    faq5_a: "Notre siège mondial se trouve au 44 Wall St, New York, NY 10005, USA. Vous pouvez contacter notre support opérationnel à tout moment à customershippulse@gmail.com.",
 
     // Contact Section
     contact_badge: "Bureau de Contact Opérationnel",
@@ -330,7 +335,7 @@ export const translations = {
     contact_msg_label: "Message *",
     contact_msg_ph: "Précisez le poids, l'itinéraire et les détails de la cargaison...",
     contact_submit_btn: "Envoyer le Message",
-    contact_success_msg: "✓ Merci ! Votre message a été envoyé à track.shippulse@gmail.com. Un spécialiste opérationnel vous répondra sous peu.",
+    contact_success_msg: "✓ Merci ! Votre message a été envoyé à customershippulse@gmail.com. Un spécialiste opérationnel vous répondra sous peu.",
     contact_hq_title: "Siège Exécutif",
     contact_email_title: "Contact Email Direct",
     contact_email_desc: "Support Général & Fret :",
@@ -385,7 +390,7 @@ export const translations = {
     inv_ref: "Réf Facture :",
     inv_tracking_id: "ID Suivi :",
     inv_issued_date: "Date d'Émission :",
-    inv_hq: "Siège : 44 Wall St, New York, NY 10005, USA • Email : track.shippulse@gmail.com",
+    inv_hq: "Siège : 44 Wall St, New York, NY 10005, USA • Email : customershippulse@gmail.com",
     inv_doc_type: "Document Logistique Officiel Autorisé",
     inv_route: "ITINÉRAIRE OFFICIEL :",
     inv_mode: "MODE :",
@@ -412,6 +417,11 @@ export const translations = {
     inv_insurance_notice_text: "Le règlement des frais d'assurance est obligatoire pour finaliser l'expédition. Si le paiement n'est pas effectué, le statut de l'expédition restera « EN ATTENTE » et la livraison sera suspendue.",
     inv_legal_statement: "Ce document est vérifié électroniquement et émis par le Contrôle Opérationnel ShipPulse. Valide pour le dédouanement et l'audit de fret.",
     inv_verified_stamp: "Manifeste Vérifié",
+    inv_departure_date: "Date de départ :",
+    inv_departure_time: "Heure de départ du trajet :",
+    inv_est_arrival_date: "Date d'arrivée estimée :",
+    inv_duration: "Durée du trajet :",
+    inv_hide_insurance_option: "Masquer les frais d'assurance côté client (suivi)",
 
     // Footer
     footer_tagline: "Contrôle des opérations de fret mondial & réseau de télémétrie en temps réel.",
@@ -420,3 +430,4 @@ export const translations = {
     footer_rights: "ShipPulse Logistics Inc. Tous droits réservés."
   }
 };
+

@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { useShipments } from '../context/ShipmentContext';
 import { formatTownLocationString } from '../utils/geo';
+import { getShipmentRegionConfig } from '../utils/regionUtils';
+import { formatRegionalDateTime, formatEstArrivalString } from '../utils/cargoUtils';
 
 import 'leaflet/dist/leaflet.css';
 
@@ -182,56 +184,73 @@ export default function AdminMapControl({ shipment, onOpenPauseModal }) {
         </div>
       </div>
 
-      {/* Auto Simulation Speed Control Bar */}
-      <div style={{
-        background: '#F1F5F9',
-        border: '1px solid #CBD5E1',
-        padding: '10px 16px',
-        borderRadius: 'var(--radius-sm)',
-        marginBottom: '16px',
-        display: 'flex',
-        alignItems: 'center',
-        justify: 'space-between',
-        flexWrap: 'wrap',
-        gap: '12px',
-        fontSize: '0.85rem'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Zap size={16} color="var(--primary-cyan)" />
-          <strong>Auto-Movement Simulator:</strong>
-          <button
-            onClick={handleToggleAutoMode}
-            className={`badge ${autoMode ? 'badge-paid' : 'badge-transit'}`}
-            style={{ cursor: 'pointer', border: 'none' }}
-          >
-            {autoMode ? 'ON (Active Timer)' : 'OFF (Manual Drag)'}
-          </button>
-        </div>
+      {/* Real-Time Duration & Departure Telemetry Bar (No Simulation Speed) */}
+      {(() => {
+        const regionCfg = getShipmentRegionConfig(shipment);
+        const isFR = regionCfg.lang === 'fr';
+        const depFmt = formatRegionalDateTime(shipment.departureDate || '2026-09-05', shipment.departureTime || '08:00', isFR);
+        const arrFmt = formatEstArrivalString(shipment.estimatedArrivalDate, isFR);
 
-        {autoMode && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ color: 'var(--text-muted)' }}>Simulation Speed:</span>
-            {[1, 5, 10, 50, 100].map(mult => (
+        if (isPaymentBlocked) {
+          return (
+            <div style={{
+              background: '#FFF1F2',
+              border: '1px solid #FECDD3',
+              padding: '12px 16px',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justify: 'space-between',
+              flexWrap: 'wrap',
+              gap: '14px',
+              fontSize: '0.85rem',
+              color: '#9F1239',
+              fontWeight: 700
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Clock size={16} color="#E11D48" />
+                <span>{isFR ? "Programmation Départ & Arrivée : En attente du règlement des frais" : "Departure & Arrival Schedule: Awaiting Payment Settlement"}</span>
+              </div>
+              <span className="badge badge-pending">⌛ {isFR ? 'PAIEMENT EN ATTENTE' : 'PAYMENT PENDING'}</span>
+            </div>
+          );
+        }
+
+        return (
+          <div style={{
+            background: '#F1F5F9',
+            border: '1px solid #CBD5E1',
+            padding: '12px 16px',
+            borderRadius: 'var(--radius-sm)',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justify: 'space-between',
+            flexWrap: 'wrap',
+            gap: '14px',
+            fontSize: '0.85rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Clock size={16} color="var(--primary-cyan)" />
+              <span><strong>{isFR ? 'Départ :' : 'Departure:'}</strong> {depFmt}</span>
+              <span>&bull;</span>
+              <span><strong>{isFR ? 'Durée :' : 'Duration:'}</strong> {shipment.durationHours || 12} {isFR ? 'Heures' : 'Hours'}</span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span><strong>{isFR ? 'Arrivée Est. :' : 'Est. Arrival:'}</strong> <span style={{ color: 'var(--accent-blue)', fontWeight: 700 }}>{arrFmt}</span></span>
               <button
-                key={mult}
-                onClick={() => handleSpeedChange(mult)}
-                style={{
-                  background: speedMultiplier === mult ? 'var(--primary-navy)' : '#FFFFFF',
-                  color: speedMultiplier === mult ? '#FFFFFF' : 'var(--text-main)',
-                  border: '1px solid #CBD5E1',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  fontSize: '0.78rem'
-                }}
+                onClick={handleToggleAutoMode}
+                className={`badge ${autoMode ? 'badge-paid' : 'badge-transit'}`}
+                style={{ cursor: 'pointer', border: 'none' }}
               >
-                {mult}x
+                {autoMode ? (isFR ? 'Sync GPS Auto : ACTIF' : 'GPS Auto Sync: ON') : (isFR ? 'Position Manuelle : ACTIVE' : 'Manual Position: ACTIVE')}
               </button>
-            ))}
+            </div>
           </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* Leaflet Map */}
       <div style={{ height: '420px', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid #CBD5E1' }}>

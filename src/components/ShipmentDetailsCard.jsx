@@ -5,23 +5,21 @@ import {
   Mail, 
   Phone, 
   MapPin, 
-  FileText, 
   Package, 
-  Scale, 
-  Box, 
-  DollarSign, 
   ShieldCheck, 
   CreditCard, 
   Clock, 
   AlertTriangle,
   Send,
   UserCheck,
-  Globe,
-  Flag
+  Calendar,
+  Timer,
+  Navigation
 } from 'lucide-react';
 import { formatLocationString } from '../utils/geo';
 import { getShipmentRegionConfig } from '../utils/regionUtils';
 import { translations } from '../utils/translations';
+import { formatDimensionsString, formatRegionalDateTime, formatEstArrivalString } from '../utils/cargoUtils';
 
 export default function ShipmentDetailsCard({ shipment }) {
   if (!shipment) return null;
@@ -40,13 +38,10 @@ export default function ShipmentDetailsCard({ shipment }) {
     sender = {},
     recipient = {},
     freight = {},
-    timeline = [],
-    transportMode,
     originCity,
     destinationCity,
     originLocation,
     destLocation,
-    status
   } = shipment;
 
   const originStr = formatLocationString(originLocation) || originCity;
@@ -72,15 +67,26 @@ export default function ShipmentDetailsCard({ shipment }) {
   const getFeeBadge = (feeStatus) => {
     switch (feeStatus) {
       case 'Paid':
-        return <span className="badge badge-paid">✓ {isFR ? 'Payé' : 'Paid'}</span>;
+        return <span className="badge badge-paid">✓ {isFR ? 'PAYÉ' : 'PAID'}</span>;
       case 'Pending':
-        return <span className="badge badge-pending">⌛ {isFR ? 'En Attente' : 'Pending'}</span>;
+        return <span className="badge badge-pending">⌛ {isFR ? 'EN ATTENTE' : 'PENDING'}</span>;
       case 'Partial':
-        return <span className="badge badge-pending">🌗 {isFR ? 'Partiel' : 'Partial'}</span>;
+        return <span className="badge badge-pending">🌗 {isFR ? 'PARTIEL' : 'PARTIAL'}</span>;
       default:
-        return <span className="badge badge-paid">{feeStatus || (isFR ? 'Payé' : 'Paid')}</span>;
+        return <span className="badge badge-paid">{(feeStatus || (isFR ? 'PAYÉ' : 'PAID')).toUpperCase()}</span>;
     }
   };
+
+  // Clean formatted date helper
+  const depDate = shipment.departureDate || '2026-09-05';
+  const depTime = shipment.departureTime || '08:00';
+  const depFormatted = formatRegionalDateTime(depDate, depTime, isFR);
+
+  // Clean estimated arrival date helper with AM/PM for USA and 24h for Europe
+  const rawEstArrival = shipment.estimatedArrivalDate || `${depDate} ${depTime}`;
+  const arrFormatted = formatEstArrivalString(rawEstArrival, isFR);
+
+  const durationText = `${shipment.durationHours || 12} ${isFR ? 'Heures' : 'Hours'}`;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -192,47 +198,146 @@ export default function ShipmentDetailsCard({ shipment }) {
 
       </div>
 
-      {/* Freight Specs & Financial Settlement Card */}
+      {/* SECTION 2: Technical Package Specifications Card */}
       <div className="glass-card" style={{ padding: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', color: 'var(--primary-navy)', borderBottom: '1px solid #E2E8F0', paddingBottom: '10px' }}>
           <Package size={20} color="var(--primary-cyan)" />
           <h3 style={{ fontSize: '1.05rem', margin: 0, fontWeight: 800 }}>
-            {t('inv_specs_title')} & {t('inv_financial_freight_title')}
+            {isFR ? 'Propriétés Techniques du Colis' : 'Package Technical Specifications'}
           </h3>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', fontSize: '0.88rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', fontSize: '0.88rem' }}>
           
-          <div>
-            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.78rem' }}>{t('inv_th_desc')}</span>
-            <strong>{freight.description || 'General Freight'}</strong>
+          <div style={{ background: '#F8FAFC', padding: '12px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid #E2E8F0' }}>
+            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>
+              {t('inv_th_desc')}
+            </span>
+            <strong style={{ color: 'var(--primary-navy)', fontSize: '0.95rem' }}>{freight.description || 'General Freight'}</strong>
           </div>
 
-          <div>
-            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.78rem' }}>{t('inv_th_category')}</span>
-            {getGoodsTypeBadge(freight.goodsType)}
+          <div style={{ background: '#F8FAFC', padding: '12px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid #E2E8F0' }}>
+            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>
+              {t('inv_th_category')}
+            </span>
+            <div>{getGoodsTypeBadge(freight.goodsType)}</div>
           </div>
 
-          <div>
-            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.78rem' }}>{t('inv_th_weight')} / {t('inv_th_volume')}</span>
-            <strong>{freight.weightKg || 0} kg &bull; {freight.volumeM3 || 0} m³</strong>
+          <div style={{ background: '#F8FAFC', padding: '12px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid #E2E8F0' }}>
+            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>
+              {t('inv_th_weight')} & Volume
+            </span>
+            <strong style={{ color: 'var(--primary-navy)', fontSize: '0.95rem' }}>{freight.weightKg || 0} kg &bull; {freight.volumeM3 || 0} m³</strong>
           </div>
 
-          <div>
-            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.78rem' }}>{t('inv_base_freight_fee')}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <strong style={{ color: 'var(--accent-blue)', fontSize: '1rem' }}>{formatCurrency(freight.shippingFee)}</strong>
+          <div style={{ background: '#F8FAFC', padding: '12px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid #E2E8F0' }}>
+            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>
+              {t('inv_th_dimensions')}
+            </span>
+            <strong style={{ color: 'var(--primary-navy)', fontSize: '0.95rem' }}>{formatDimensionsString(freight.weightKg, freight.volumeM3, freight.dimensions)}</strong>
+          </div>
+
+        </div>
+      </div>
+
+      {/* SECTION 3: Journey Schedule & Telemetry Dates Card */}
+      <div className="glass-card" style={{ padding: '20px', background: 'linear-gradient(135deg, #F8FAFC 0%, #E0F2FE 100%)', border: '1.5px solid var(--primary-cyan)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', color: 'var(--primary-navy)', borderBottom: '1px solid #CBD5E1', paddingBottom: '10px' }}>
+          <Clock size={20} color="var(--primary-navy)" />
+          <h3 style={{ fontSize: '1.05rem', margin: 0, fontWeight: 800 }}>
+            {isFR ? 'Planification & Télémétrie du Trajet' : 'Journey Schedule & Telemetry Dates'}
+          </h3>
+        </div>
+
+        {isPaymentBlocked ? (
+          <div style={{ background: '#FFF1F2', border: '1px solid #FECDD3', padding: '14px', borderRadius: 'var(--radius-sm)', color: '#9F1239', fontWeight: 700, fontSize: '0.88rem' }}>
+            ⚠️ {isFR ? "Programmation du Trajet Suspendue : La date/heure de départ et d'arrivée seront définies dès le règlement complet des frais (Fret & Assurance)." : "Journey Schedule On Hold: Departure & Arrival dates will be scheduled once full payment (Freight & Insurance) is settled."}
+          </div>
+        ) : (
+          (() => {
+            const status = shipment.status || 'In Transit';
+            const isPaused = shipment.isPaused;
+
+            let depLabel = isFR ? 'Date & Heure de Départ' : 'Departure Date & Time';
+            let durLabel = isFR ? 'Durée du Trajet' : 'Transit Duration';
+            let arrLabel = isFR ? "Date & Heure d'Arrivée Estimée" : 'Estimated Arrival Date & Time';
+
+            if (status === 'Scheduled') {
+              depLabel = isFR ? 'Date & Heure de Départ Prévues' : 'Scheduled Departure Date & Time';
+              durLabel = isFR ? 'Durée Prévue du Parcours' : 'Planned Transit Duration';
+              arrLabel = isFR ? "Livraison Estimée après Départ" : 'Estimated Arrival After Dispatch';
+            } else if (status === 'Delivered') {
+              depLabel = isFR ? 'Date & Heure de Départ' : 'Departure Date & Time';
+              durLabel = isFR ? 'Durée Effective du Parcours' : 'Actual Transit Duration';
+              arrLabel = isFR ? "Date & Heure de Livraison Finalisée" : 'Final Delivery Date & Time';
+            } else if (isPaused) {
+              depLabel = isFR ? 'Date & Heure de Départ Initial' : 'Original Departure Date & Time';
+              durLabel = isFR ? 'Durée Totale du Parcours' : 'Total Transit Duration';
+              arrLabel = isFR ? "Date d'Arrivée Réajustée (Pause)" : 'Adjusted Est. Arrival (Pause Shifted)';
+            }
+
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', fontSize: '0.88rem' }}>
+                
+                <div style={{ background: '#FFFFFF', padding: '12px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid #CBD5E1', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+                  <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>
+                    <Calendar size={13} color="var(--primary-navy)" /> {depLabel}
+                  </span>
+                  <strong style={{ color: 'var(--primary-navy)', fontSize: '0.95rem' }}>{depFormatted}</strong>
+                </div>
+
+                <div style={{ background: '#FFFFFF', padding: '12px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid #CBD5E1', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+                  <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>
+                    <Timer size={13} color="var(--primary-navy)" /> {durLabel}
+                  </span>
+                  <strong style={{ color: 'var(--primary-navy)', fontSize: '0.95rem' }}>{durationText}</strong>
+                </div>
+
+                <div style={{ background: '#FFFFFF', padding: '12px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid #CBD5E1', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+                  <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>
+                    <Navigation size={13} color="var(--accent-blue)" /> {arrLabel}
+                  </span>
+                  <strong style={{ color: 'var(--accent-blue)', fontSize: '0.95rem' }}>{arrFormatted}</strong>
+                </div>
+
+              </div>
+            );
+          })()
+        )}
+      </div>
+
+      {/* SECTION 4: Financial Settlement Card */}
+      <div className="glass-card" style={{ padding: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', color: 'var(--primary-navy)', borderBottom: '1px solid #E2E8F0', paddingBottom: '10px' }}>
+          <CreditCard size={20} color="var(--primary-cyan)" />
+          <h3 style={{ fontSize: '1.05rem', margin: 0, fontWeight: 800 }}>
+            {t('inv_financial_freight_title')}
+          </h3>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', fontSize: '0.88rem' }}>
+          
+          <div style={{ background: '#F8FAFC', padding: '14px', borderRadius: 'var(--radius-sm)', border: '1px solid #E2E8F0' }}>
+            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px' }}>
+              {t('inv_base_freight_fee')}
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+              <strong style={{ color: 'var(--accent-blue)', fontSize: '1.2rem' }}>{formatCurrency(freight.shippingFee)}</strong>
               {getFeeBadge(freight.shippingFeeStatus)}
             </div>
           </div>
 
-          <div>
-            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.78rem' }}>{t('inv_insurance_fee')}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <strong style={{ color: '#059669', fontSize: '1rem' }}>{formatCurrency(freight.insuranceAmount)}</strong>
-              {getFeeBadge(freight.insuranceFeeStatus)}
+          {!shipment.hideInsuranceFee && (
+            <div style={{ background: '#F8FAFC', padding: '14px', borderRadius: 'var(--radius-sm)', border: '1px solid #E2E8F0' }}>
+              <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px' }}>
+                {t('inv_insurance_fee')}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <strong style={{ color: '#059669', fontSize: '1.2rem' }}>{formatCurrency(freight.insuranceAmount)}</strong>
+                {getFeeBadge(freight.insuranceFeeStatus)}
+              </div>
             </div>
-          </div>
+          )}
 
         </div>
       </div>

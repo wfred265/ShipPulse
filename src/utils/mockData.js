@@ -16,7 +16,11 @@ export const INITIAL_SHIPMENTS = [
     progressPercentage: 42,
     autoMode: true,
     durationHours: 8,
-    speedMultiplier: 10,
+    departureDate: "2026-09-05",
+    departureTime: "08:00",
+    departureDateTime: "2026-09-05T08:00:00.000Z",
+    estimatedArrivalDate: "2026-09-05 16:00",
+    hideInsuranceFee: false,
     isPaused: false,
     pauseReason: "",
     createdAt: new Date(Date.now() - 3600 * 1000 * 3.5).toISOString(),
@@ -55,9 +59,9 @@ export const INITIAL_SHIPMENTS = [
     },
     
     timeline: [
-      { id: 1, timestamp: "2026-08-23 07:00", location: "Plattsburgh, NY", title: "Shipment Manifest Generated & Payment Settled", status: "completed" },
-      { id: 2, timestamp: "2026-08-23 08:30", location: "Plattsburgh Regional Airport", title: "Loaded onto Flight SP-AIR-701", status: "completed" },
-      { id: 3, timestamp: "2026-08-23 10:45", location: "Midwest Air Corridor", title: "In Flight - Cruising Speed 890 km/h", status: "current" }
+      { id: 1, timestamp: "2026-09-05 07:00", location: "Plattsburgh, NY", title: "Shipment Manifest Generated & Payment Settled", status: "completed" },
+      { id: 2, timestamp: "2026-09-05 08:00", location: "Plattsburgh Regional Airport", title: "Loaded onto Flight SP-AIR-701 - Journey Started", status: "completed" },
+      { id: 3, timestamp: "2026-09-05 10:45", location: "Midwest Air Corridor", title: "In Flight - Cruising Speed 890 km/h", status: "current" }
     ]
   },
   
@@ -76,7 +80,11 @@ export const INITIAL_SHIPMENTS = [
     progressPercentage: 0,
     autoMode: true,
     durationHours: 120,
-    speedMultiplier: 10,
+    departureDate: "2026-09-05",
+    departureTime: "09:00",
+    departureDateTime: "2026-09-05T09:00:00.000Z",
+    estimatedArrivalDate: "2026-09-10 09:00",
+    hideInsuranceFee: false,
     isPaused: false,
     pauseReason: "Awaiting settlement of insurance coverage policy fee",
     createdAt: new Date(Date.now() - 3600 * 1000 * 24).toISOString(),
@@ -115,7 +123,7 @@ export const INITIAL_SHIPMENTS = [
     },
     
     timeline: [
-      { id: 1, timestamp: "2026-08-22 09:00", location: "Rotterdam Port Terminal", title: "Manifeste Généré - En Attente d'Assurance", status: "current" }
+      { id: 1, timestamp: "2026-09-05 09:00", location: "Rotterdam Port Terminal", title: "Manifeste Généré - En Attente d'Assurance", status: "current" }
     ]
   },
 
@@ -134,7 +142,11 @@ export const INITIAL_SHIPMENTS = [
     progressPercentage: 65,
     autoMode: true,
     durationHours: 24,
-    speedMultiplier: 10,
+    departureDate: "2026-09-05",
+    departureTime: "04:00",
+    departureDateTime: "2026-09-05T04:00:00.000Z",
+    estimatedArrivalDate: "2026-09-06 04:00",
+    hideInsuranceFee: false,
     isPaused: false,
     pauseReason: "",
     createdAt: new Date(Date.now() - 3600 * 1000 * 12).toISOString(),
@@ -173,9 +185,9 @@ export const INITIAL_SHIPMENTS = [
     },
     
     timeline: [
-      { id: 1, timestamp: "2026-08-23 01:00", location: "Berlin Logistics Center", title: "Départ du Centre Logistique", status: "completed" },
-      { id: 2, timestamp: "2026-08-23 07:30", location: "Frankfurt Hub", title: "Dédouanement Effectué", status: "completed" },
-      { id: 3, timestamp: "2026-08-23 11:00", location: "Autoroute A9 France Sud", title: "En Transit vers les Pyrénées", status: "current" }
+      { id: 1, timestamp: "2026-09-05 04:00", location: "Berlin Logistics Center", title: "Départ du Centre Logistique", status: "completed" },
+      { id: 2, timestamp: "2026-09-05 07:30", location: "Frankfurt Hub", title: "Dédouanement Effectué", status: "completed" },
+      { id: 3, timestamp: "2026-09-05 11:00", location: "Autoroute A9 France Sud", title: "En Transit vers les Pyrénées", status: "current" }
     ]
   }
 ];

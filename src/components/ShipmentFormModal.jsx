@@ -4,6 +4,7 @@ import { useShipments } from '../context/ShipmentContext';
 import { useLanguage } from '../context/LanguageContext';
 import LocationAutocompleteInput from './LocationAutocompleteInput';
 import { formatTownLocationString, resolveCoords, isValidWorldwideLocation } from '../utils/geo';
+import { calcFreightDimensions, calcEstArrivalDate } from '../utils/cargoUtils';
 import InvoicePreviewModal from './InvoicePreviewModal';
 
 export default function ShipmentFormModal({ onClose }) {
@@ -12,6 +13,9 @@ export default function ShipmentFormModal({ onClose }) {
   const [createdShipmentObj, setCreatedShipmentObj] = useState(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [locationValidationError, setLocationValidationError] = useState('');
+
+  const todayStr = new Date().toISOString().substring(0, 10);
+  const nowTimeStr = new Date().toTimeString().substring(0, 5);
 
   // Form State with Region selection ('USA' | 'EUROPE')
   const [formData, setFormData] = useState({
@@ -23,6 +27,10 @@ export default function ShipmentFormModal({ onClose }) {
     destLocation: null,
 
     durationHours: 12,
+    departureDate: todayStr,
+    departureTime: nowTimeStr,
+    estimatedArrivalDate: '',
+    hideInsuranceFee: false,
     
     sender: {
       firstName: '',
@@ -57,6 +65,11 @@ export default function ShipmentFormModal({ onClose }) {
       paymentStatus: 'Paid'
     }
   });
+
+  // Calculate estimated arrival timestamp display
+  const calcEstArrival = (depD, depT, dur) => {
+    return calcEstArrivalDate(depD, depT, dur, 0, false);
+  };
 
   const activeCurrencySymbol = formData.region === 'EUROPE' ? '€' : '$';
 
@@ -330,12 +343,99 @@ export default function ShipmentFormModal({ onClose }) {
                 })}
               </div>
 
-              <div>
-                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                  {formData.region === 'EUROPE' ? 'Durée estimée du trajet (Heures)' : 'Estimated Transit Duration (Hours)'}
-                </label>
-                <input type="number" className="glass-input" value={formData.durationHours} onChange={e => setFormData({ ...formData, durationHours: parseFloat(e.target.value) || 10 })} min="1" />
-              </div>
+              {(() => {
+                const isShippingPending = formData.freight.shippingFeeStatus === 'Pending';
+                const isInsurancePending = formData.freight.insuranceFeeStatus === 'Pending';
+                const isPaymentBlocked = isShippingPending || isInsurancePending;
+
+                return (
+                  <>
+                    {isPaymentBlocked && (
+                      <div style={{ background: '#FFF1F2', border: '1px solid #FECDD3', padding: '10px 14px', borderRadius: 'var(--radius-sm)', color: '#9F1239', fontSize: '0.82rem', fontWeight: 700, marginTop: '10px' }}>
+                        ⚠️ {formData.region === 'EUROPE' ? "Saisie du départ et de la durée verrouillée : Le règlement des frais (Fret et Assurance) est obligatoire avant de pouvoir définir la date/heure de livraison." : "Departure schedule & duration inputs locked: Full settlement of Shipping & Insurance fees is required first."}
+                      </div>
+                    )}
+
+                    <div className="grid-3" style={{ marginTop: '12px', opacity: isPaymentBlocked ? 0.6 : 1 }}>
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary-navy)', display: 'block', marginBottom: '4px' }}>
+                          {formData.region === 'EUROPE' ? 'Date de Départ *' : 'Departure Date *'}
+                        </label>
+                        <input 
+                          type="date" 
+                          className="glass-input" 
+                          value={formData.departureDate} 
+                          disabled={isPaymentBlocked}
+                          onChange={e => {
+                            const newDate = e.target.value;
+                            const arr = calcEstArrival(newDate, formData.departureTime, formData.durationHours);
+                            setFormData({ ...formData, departureDate: newDate, estimatedArrivalDate: arr });
+                          }} 
+                          required={!isPaymentBlocked}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary-navy)', display: 'block', marginBottom: '4px' }}>
+                          {formData.region === 'EUROPE' ? 'Heure de Départ (Début Trajet) *' : 'Departure Time (Journey Start) *'}
+                        </label>
+                        <input 
+                          type="time" 
+                          className="glass-input" 
+                          value={formData.departureTime} 
+                          disabled={isPaymentBlocked}
+                          onChange={e => {
+                            const newTime = e.target.value;
+                            const arr = calcEstArrival(formData.departureDate, newTime, formData.durationHours);
+                            setFormData({ ...formData, departureTime: newTime, estimatedArrivalDate: arr });
+                          }} 
+                          required={!isPaymentBlocked}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary-navy)', display: 'block', marginBottom: '4px' }}>
+                          {formData.region === 'EUROPE' ? 'Durée du trajet (Heures) *' : 'Transit Duration (Hours) *'}
+                        </label>
+                        <input 
+                          type="number" 
+                          className="glass-input" 
+                          value={formData.durationHours} 
+                          disabled={isPaymentBlocked}
+                          onChange={e => {
+                            const newDur = parseFloat(e.target.value) || 12;
+                            const arr = calcEstArrival(formData.departureDate, formData.departureTime, newDur);
+                            setFormData({ ...formData, durationHours: newDur, estimatedArrivalDate: arr });
+                          }} 
+                          min="1" 
+                          required={!isPaymentBlocked}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFFFF', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid #CBD5E1', flexWrap: 'wrap', gap: '10px' }}>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--primary-navy)' }}>
+                        <strong>{formData.region === 'EUROPE' ? "Date & Heure d'Arrivée Estimée :" : "Estimated Arrival Date & Time:"}</strong>{' '}
+                        <span style={{ color: isPaymentBlocked ? '#E11D48' : 'var(--accent-blue)', fontWeight: 700 }}>
+                          {isPaymentBlocked 
+                            ? (formData.region === 'EUROPE' ? 'En attente du règlement des frais' : 'Awaiting Payment Settlement')
+                            : (formData.estimatedArrivalDate || calcEstArrival(formData.departureDate, formData.departureTime, formData.durationHours))}
+                        </span>
+                      </div>
+
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: 'var(--primary-navy)' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={formData.hideInsuranceFee} 
+                          onChange={e => setFormData({ ...formData, hideInsuranceFee: e.target.checked })} 
+                          style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                        />
+                        {formData.region === 'EUROPE' ? "Masquer les frais d'assurance côté client (suivi)" : "Hide Insurance Fee on Client Tracking View"}
+                      </label>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* Section 2: Sender & Recipient */}
@@ -405,12 +505,115 @@ export default function ShipmentFormModal({ onClose }) {
 
                   <div>
                     <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Poids (kg)</label>
-                    <input type="number" step="0.1" className="glass-input" value={formData.freight.weightKg} onChange={e => setFormData({ ...formData, freight: { ...formData.freight, weightKg: parseFloat(e.target.value) || 0 } })} />
+                    <input 
+                      type="number" 
+                      step="0.1" 
+                      className="glass-input" 
+                      value={formData.freight.weightKg} 
+                      onChange={e => {
+                        const newWeight = parseFloat(e.target.value) || 0;
+                        const autoDims = calcFreightDimensions(newWeight, formData.freight.volumeM3, null);
+                        setFormData({ 
+                          ...formData, 
+                          freight: { 
+                            ...formData.freight, 
+                            weightKg: newWeight,
+                            dimensions: autoDims
+                          } 
+                        });
+                      }} 
+                    />
                   </div>
 
                   <div>
                     <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Volume (m³)</label>
-                    <input type="number" step="0.01" className="glass-input" value={formData.freight.volumeM3} onChange={e => setFormData({ ...formData, freight: { ...formData.freight, volumeM3: parseFloat(e.target.value) || 0 } })} />
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      className="glass-input" 
+                      value={formData.freight.volumeM3} 
+                      onChange={e => {
+                        const newVol = parseFloat(e.target.value) || 0;
+                        const autoDims = calcFreightDimensions(formData.freight.weightKg, newVol, null);
+                        setFormData({ 
+                          ...formData, 
+                          freight: { 
+                            ...formData.freight, 
+                            volumeM3: newVol,
+                            dimensions: autoDims
+                          } 
+                        });
+                      }} 
+                    />
+                  </div>
+                </div>
+
+                {/* Dimensions (Auto-calculated from weight & volume, or custom entered) */}
+                <div style={{ background: '#FFFFFF', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid #CBD5E1' }}>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--primary-navy)', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>{formData.region === 'EUROPE' ? 'Dimensions du Colis (L × l × h cm)' : 'Package Dimensions (L × W × H cm)'}</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--accent-blue)', fontWeight: 600 }}>
+                      ⚡ {formData.region === 'EUROPE' ? 'Calculé automatiquement via Poids & Volume' : 'Auto-calculated from Weight & Volume'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Longueur (cm)</span>
+                      <input 
+                        type="number" 
+                        className="glass-input" 
+                        placeholder="Longueur" 
+                        value={formData.freight.dimensions?.length || ''} 
+                        onChange={e => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setFormData({ 
+                            ...formData, 
+                            freight: { 
+                              ...formData.freight, 
+                              dimensions: { ...(formData.freight.dimensions || {}), length: val } 
+                            } 
+                          });
+                        }} 
+                      />
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Largeur (cm)</span>
+                      <input 
+                        type="number" 
+                        className="glass-input" 
+                        placeholder="Largeur" 
+                        value={formData.freight.dimensions?.width || ''} 
+                        onChange={e => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setFormData({ 
+                            ...formData, 
+                            freight: { 
+                              ...formData.freight, 
+                              dimensions: { ...(formData.freight.dimensions || {}), width: val } 
+                            } 
+                          });
+                        }} 
+                      />
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Hauteur (cm)</span>
+                      <input 
+                        type="number" 
+                        className="glass-input" 
+                        placeholder="Hauteur" 
+                        value={formData.freight.dimensions?.height || ''} 
+                        onChange={e => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setFormData({ 
+                            ...formData, 
+                            freight: { 
+                              ...formData.freight, 
+                              dimensions: { ...(formData.freight.dimensions || {}), height: val } 
+                            } 
+                          });
+                        }} 
+                      />
+                    </div>
                   </div>
                 </div>
 

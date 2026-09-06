@@ -96,14 +96,10 @@ export default function Footer() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#CBD5E1' }}>
               <Mail size={18} color="var(--primary-cyan)" style={{ flexShrink: 0 }} />
-              <a href="mailto:track.shippulse@gmail.com" style={{ color: '#CBD5E1', textDecoration: 'none' }}>
-                track.shippulse@gmail.com
+              <a href="mailto:customershippulse@gmail.com" style={{ color: '#CBD5E1', textDecoration: 'none' }}>
+                customershippulse@gmail.com
               </a>
             </div>
-            <li style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#CBD5E1', listStyle: 'none' }}>
-              <Phone size={18} color="var(--primary-cyan)" style={{ flexShrink: 0 }} />
-              <span>+1 (929) 315-6218 ({lang === 'fr' ? 'Support 24/7' : '24/7 Dispatch'})</span>
-            </li>
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import { generateShipmentInvoicePDF, generateBothInvoicesPDF } from '../utils/pd
 import { formatTownLocationString, extractCityOnly } from '../utils/geo';
 import { getShipmentRegionConfig } from '../utils/regionUtils';
 import { translations } from '../utils/translations';
+import { formatDimensionsString, formatRegionalDateTime, formatEstArrivalString } from '../utils/cargoUtils';
 
 export default function InvoicePreviewModal({ shipment, onClose }) {
   const [activeInvoiceType, setActiveInvoiceType] = useState('shipping'); // 'shipping' | 'insurance'
@@ -39,6 +40,13 @@ export default function InvoicePreviewModal({ shipment, onClose }) {
   // City-only variants for invoice display (strip region/state suffix)
   const originCityOnly = extractCityOnly(originTownStr);
   const destCityOnly = extractCityOnly(destTownStr);
+
+  const depDateModal = shipment.departureDate || '2026-09-05';
+  const depTimeModal = shipment.departureTime || '08:00';
+  const depFormattedModal = formatRegionalDateTime(depDateModal, depTimeModal, isFR);
+
+  const rawEstArrivalModal = shipment.estimatedArrivalDate || `${depDateModal} ${depTimeModal}`;
+  const arrFormattedModal = formatEstArrivalString(rawEstArrivalModal, isFR);
 
   const isInsuranceInvoice = activeInvoiceType === 'insurance';
 
@@ -237,7 +245,7 @@ export default function InvoicePreviewModal({ shipment, onClose }) {
                 color: '#FFFFFF',
                 padding: '10px 18px',
                 borderRadius: 'var(--radius-sm)',
-                marginBottom: '20px',
+                marginBottom: '10px',
                 display: 'flex',
                 justify: 'space-between',
                 alignItems: 'center',
@@ -262,6 +270,63 @@ export default function InvoicePreviewModal({ shipment, onClose }) {
                   {t('inv_mode')} {getTransportEmoji(transportMode)}
                 </div>
               </div>
+
+              {/* DEPARTURE, START TIME & ESTIMATED ARRIVAL METADATA ROW */}
+              {(() => {
+                const isShippingPending = freight.shippingFeeStatus === 'Pending';
+                const isInsurancePending = freight.insuranceFeeStatus === 'Pending';
+                const isPaymentBlocked = isShippingPending || isInsurancePending;
+
+                if (isPaymentBlocked) {
+                  return (
+                    <div style={{
+                      background: '#FFF1F2',
+                      border: '1px solid #FECDD3',
+                      padding: '10px 14px',
+                      borderRadius: 'var(--radius-sm)',
+                      marginBottom: '20px',
+                      color: '#9F1239',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <AlertTriangle size={16} color="#E11D48" />
+                      {isFR 
+                        ? "Planification du départ & d'arrivée : En attente du règlement des frais" 
+                        : "Departure & Arrival Schedule: Awaiting Payment Settlement"}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div style={{
+                    background: '#F1F5F9',
+                    border: '1px solid #CBD5E1',
+                    padding: '8px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    marginBottom: '20px',
+                    display: 'flex',
+                    justify: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '0.78rem',
+                    color: '#1E293B',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}>
+                    <div>
+                      <strong>{t('inv_departure_date')}</strong> {depFormattedModal}
+                    </div>
+                    <div>
+                      <strong>{t('inv_duration')}</strong> {shipment.durationHours || 12} {isFR ? 'Heures' : 'Hours'}
+                    </div>
+                    <div>
+                      <strong>{t('inv_est_arrival_date')}</strong> <span style={{ color: 'var(--primary-navy)', fontWeight: 700 }}>{arrFormattedModal}</span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Shipper & Recipient Details Cards */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '22px' }}>
@@ -319,7 +384,7 @@ export default function InvoicePreviewModal({ shipment, onClose }) {
                       <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}><span className="badge badge-transit">{freight.goodsType || 'Standard'}</span></td>
                       <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', fontWeight: 600 }}>{freight.weightKg || 0}&nbsp;kg</td>
                       <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', fontWeight: 600 }}>{freight.volumeM3 || 0}&nbsp;m³</td>
-                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', fontWeight: 600 }}>{freight.dimensions?.length || 0}×{freight.dimensions?.width || 0}×{freight.dimensions?.height || 0}&nbsp;cm</td>
+                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', fontWeight: 600 }}>{formatDimensionsString(freight.weightKg, freight.volumeM3, freight.dimensions)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -415,11 +480,7 @@ export default function InvoicePreviewModal({ shipment, onClose }) {
                   
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', color: '#334155', fontSize: '0.78rem' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                      <Phone size={13} color="var(--primary-navy)" /> +1 (929) 315-6218
-                    </span>
-                    <span>&bull;</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                      <Mail size={13} color="var(--primary-navy)" /> track.shippulse@gmail.com
+                      <Mail size={13} color="var(--primary-navy)" /> customershippulse@gmail.com
                     </span>
                   </div>
 

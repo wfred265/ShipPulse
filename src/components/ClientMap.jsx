@@ -50,6 +50,8 @@ const getTransportEmoji = (mode) => {
   }
 };
 
+import { formatRegionalDateTime, formatEstArrivalString } from '../utils/cargoUtils';
+
 // Component to dynamically auto-fit map viewport bounds to origin and destination
 function MapBoundsFitter({ originCoords, destCoords }) {
   const map = useMap();
@@ -153,6 +155,60 @@ export default function ClientMap({ shipment }) {
                 ? `Paiement en attente. Le règlement des frais doit être effectué avant le départ vers ${destTownStr}.`
                 : `Payment status is Pending. Fee settlement must be completed before transit to ${destTownStr} initiates.`}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Departure & Estimated Arrival Telemetry Bar */}
+      {isPaymentBlocked ? (
+        <div style={{
+          background: '#FFF1F2',
+          border: '1px solid #FECDD3',
+          padding: '10px 16px',
+          borderRadius: 'var(--radius-sm)',
+          marginBottom: '12px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px',
+          fontSize: '0.82rem',
+          color: '#9F1239',
+          fontWeight: 700
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Clock size={16} color="#E11D48" />
+            <span>{isFR ? "Programmation Départ & Arrivée : En attente du règlement des frais" : "Departure & Arrival Schedule: Awaiting Payment Settlement"}</span>
+          </div>
+          <span className="badge badge-pending">⌛ {isFR ? 'PAIEMENT EN ATTENTE' : 'PAYMENT PENDING'}</span>
+        </div>
+      ) : (
+        <div style={{
+          background: '#F8FAFC',
+          border: '1px solid #CBD5E1',
+          padding: '10px 16px',
+          borderRadius: 'var(--radius-sm)',
+          marginBottom: '12px',
+          display: 'flex',
+          justify: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px',
+          fontSize: '0.82rem',
+          color: 'var(--primary-navy)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Clock size={16} color="var(--primary-cyan)" />
+            <span><strong>{isFR ? 'Départ :' : 'Departure:'}</strong> {formatRegionalDateTime(shipment.departureDate || '2026-09-05', shipment.departureTime || '08:00', isFR)}</span>
+            <span>&bull;</span>
+            <span><strong>{isFR ? 'Durée :' : 'Duration:'}</strong> {shipment.durationHours || 12} {isFR ? 'Heures' : 'Hours'}</span>
+          </div>
+
+          <div>
+            <strong>{isFR ? 'Arrivée Estimée :' : 'Est. Arrival:'}</strong>{' '}
+            <span style={{ color: 'var(--accent-blue)', fontWeight: 700 }}>
+              {formatEstArrivalString(shipment.estimatedArrivalDate, isFR)}
+            </span>
           </div>
         </div>
       )}

@@ -213,7 +213,7 @@ export default function ClientPortal() {
             </div>
             <h4 style={{ color: '#FFF', fontSize: '1.1rem', marginBottom: '8px' }}>Headquarters & Logistics Hub</h4>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: '1.5' }}>
-              Located at <strong>44 Wall St, New York, NY 10005</strong>. Contact operational support anytime at <code>track.shippulse@gmail.com</code>.
+              Located at <strong>44 Wall St, New York, NY 10005</strong>. Contact operational support anytime at <code>customershippulse@gmail.com</code>.
             </p>
           </div>
         </div>

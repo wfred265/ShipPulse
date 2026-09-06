@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { formatTownLocationString, extractCityOnly } from './geo';
 import { getShipmentRegionConfig } from './regionUtils';
+import { formatDimensionsString, formatRegionalDateTime, formatEstArrivalString } from './cargoUtils';
 
 /**
  * Generate PDF Invoice bound immutably to shipment region (USA = EN/$, EUROPE = FR/€)
@@ -111,24 +112,46 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...textMuted);
-  doc.text(isFR ? 'Siège : 44 Wall St, New York, NY 10005, USA  |  Email : track.shippulse@gmail.com  |  Document Logistique Autorisé' : 'HQ: 44 Wall St, New York, NY 10005, USA  |  Email: track.shippulse@gmail.com  |  Official Authorized Logistics Document', 14, 39);
+  doc.text(isFR ? 'Siège : 44 Wall St, New York, NY 10005, USA  |  Email : customershippulse@gmail.com  |  Document Logistique Autorisé' : 'HQ: 44 Wall St, New York, NY 10005, USA  |  Email: customershippulse@gmail.com  |  Official Authorized Logistics Document', 14, 39);
 
   let y = 44;
 
   doc.setFillColor(...bgLight);
   doc.setDrawColor(...borderLight);
-  doc.roundedRect(14, y, 182, 12, 2, 2, 'FD');
+  doc.roundedRect(14, y, 182, 16, 2, 2, 'FD');
 
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...primaryNavy);
-  doc.text(`${isFR ? 'ITINÉRAIRE :' : 'ROUTE:'} ${originCityOnly.toUpperCase()}   ===>   ${destCityOnly.toUpperCase()}`, 18, y + 7.5);
+  doc.text(`${isFR ? 'ITINÉRAIRE :' : 'ROUTE:'} ${originCityOnly.toUpperCase()}   ===>   ${destCityOnly.toUpperCase()}`, 18, y + 6);
   
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...accentBlue);
-  doc.text(`MODE: ${(transportMode || 'truck').toUpperCase()}`, 190, y + 7.5, { align: 'right' });
+  doc.text(`MODE: ${(transportMode || 'truck').toUpperCase()}`, 190, y + 6, { align: 'right' });
 
-  y += 18;
+  const depDatePDF = shipment.departureDate || '2026-09-05';
+  const depTimePDF = shipment.departureTime || '08:00';
+  const depFormattedPDF = formatRegionalDateTime(depDatePDF, depTimePDF, isFR);
+
+  const rawEstArrivalPDF = shipment.estimatedArrivalDate || `${depDatePDF} ${depTimePDF}`;
+  const arrFormattedPDF = formatEstArrivalString(rawEstArrivalPDF, isFR);
+
+  const isShippingPendingPDF = freight.shippingFeeStatus === 'Pending';
+  const isInsurancePendingPDF = freight.insuranceFeeStatus === 'Pending';
+  const isPaymentBlockedPDF = isShippingPendingPDF || isInsurancePendingPDF;
+
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...textMuted);
+
+  if (isPaymentBlockedPDF) {
+    doc.setTextColor(225, 29, 72);
+    doc.text(isFR ? "Planification du départ & d'arrivée : En attente du règlement des frais" : "Departure & Arrival Schedule: Awaiting Payment Settlement", 18, y + 12);
+  } else {
+    doc.text(`${isFR ? 'Départ :' : 'Departure:'} ${depFormattedPDF}   |   ${isFR ? 'Durée :' : 'Duration:'} ${shipment.durationHours || 12} ${isFR ? 'Heures' : 'Hours'}   |   ${isFR ? 'Arrivée Estimée :' : 'Est. Arrival:'} ${arrFormattedPDF}`, 18, y + 12);
+  }
+
+  y += 22;
 
   const colWidth = 88;
   doc.setFillColor(...bgLight);
@@ -204,7 +227,7 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
   doc.text(freight.goodsType || 'Standard', 75, y + 5.8);
   doc.text(`${freight.weightKg || 0} kg`, 110, y + 5.8);
   doc.text(`${freight.volumeM3 || 0} m3`, 140, y + 5.8);
-  doc.text(`${freight.dimensions?.length || 0}x${freight.dimensions?.width || 0}x${freight.dimensions?.height || 0} cm`, 165, y + 5.8);
+  doc.text(formatDimensionsString(freight.weightKg, freight.volumeM3, freight.dimensions), 165, y + 5.8);
 
   y += 18;
 
@@ -288,7 +311,7 @@ export async function generateShipmentInvoicePDF(shipment, type = 'shipping') {
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...textMuted);
-  doc.text('ShipPulse Logistics Inc.  |  44 Wall St, New York, NY 10005, USA  |  track.shippulse@gmail.com', 14, 282);
+  doc.text('ShipPulse Logistics Inc.  |  44 Wall St, New York, NY 10005, USA  |  customershippulse@gmail.com', 14, 282);
 
   const filename = isInsuranceInvoice ? `ShipPulse_Insurance_Invoice_${id}.pdf` : `ShipPulse_Freight_Invoice_${id}.pdf`;
   doc.save(filename);

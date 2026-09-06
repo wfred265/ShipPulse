@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   ArrowRight, 
@@ -34,6 +34,8 @@ import { useShipments } from '../context/ShipmentContext';
 import { useLanguage } from '../context/LanguageContext';
 import ClientMap from './ClientMap';
 import ShipmentDetailsCard from './ShipmentDetailsCard';
+import { getShipmentRegionConfig } from '../utils/regionUtils';
+import { getProportionalStatusConfig, formatTransportModeLabel } from '../utils/cargoUtils';
 
 export default function ClientLanding() {
   const { lang, t } = useLanguage();
@@ -41,6 +43,21 @@ export default function ClientLanding() {
   const [trackingCodeInput, setTrackingCodeInput] = useState('');
   const [activeTrackingShipment, setActiveTrackingShipment] = useState(null);
   const [searchError, setSearchError] = useState('');
+
+  // Keep active tracking modal updated in real-time as live telemetry changes
+  useEffect(() => {
+    if (activeTrackingShipment) {
+      const updated = shipments.find(s => s.id === activeTrackingShipment.id);
+      if (updated && (
+        updated.progressPercentage !== activeTrackingShipment.progressPercentage ||
+        updated.status !== activeTrackingShipment.status ||
+        updated.currentCoords?.[0] !== activeTrackingShipment.currentCoords?.[0] ||
+        updated.currentCoords?.[1] !== activeTrackingShipment.currentCoords?.[1]
+      )) {
+        setActiveTrackingShipment(updated);
+      }
+    }
+  }, [shipments, activeTrackingShipment]);
 
   const [activeFleetTab, setActiveFleetTab] = useState('air'); // 'air' | 'sea' | 'truck' | 'warehouse'
   const [contactSubmitted, setContactSubmitted] = useState(false);
@@ -672,8 +689,8 @@ export default function ClientLanding() {
               </h3>
               <p style={{ color: 'var(--text-main)', fontSize: '0.95rem', lineHeight: '1.6' }}>
                 {t('contact_email_desc')}<br />
-                <a href="mailto:track.shippulse@gmail.com" style={{ color: 'var(--accent-blue)', fontWeight: 700, textDecoration: 'none' }}>
-                  track.shippulse@gmail.com
+                <a href="mailto:customershippulse@gmail.com" style={{ color: 'var(--accent-blue)', fontWeight: 700, textDecoration: 'none' }}>
+                  customershippulse@gmail.com
                 </a>
               </p>
             </div>
@@ -688,38 +705,39 @@ export default function ClientLanding() {
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '1050px', background: '#F8FAFC' }}>
             
             {/* Modal Header */}
-            <div className="flex-between" style={{ marginBottom: '20px', borderBottom: '2px solid var(--primary-cyan)', paddingBottom: '14px' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <h2 style={{ fontSize: '1.8rem', color: 'var(--primary-navy)', margin: 0 }}>
-                    {lang === 'fr' ? 'Expédition' : 'Shipment'} {activeTrackingShipment.id}
-                  </h2>
-                  <span className={`badge ${activeTrackingShipment.isPaused ? 'badge-paused' : (activeTrackingShipment.status === 'Delivered' ? 'badge-paid' : (activeTrackingShipment.status === 'Payment Pending' ? 'badge-pending' : 'badge-transit'))}`}>
-                    {activeTrackingShipment.isPaused
-                      ? (lang === 'fr' ? 'EN PAUSE' : 'PAUSED')
-                      : activeTrackingShipment.status === 'Payment Pending'
-                        ? (lang === 'fr' ? 'PAIEMENT EN ATTENTE' : 'PAYMENT PENDING')
-                        : activeTrackingShipment.status === 'In Transit'
-                          ? (lang === 'fr' ? 'EN TRANSIT' : 'IN TRANSIT')
-                          : activeTrackingShipment.status === 'Delivered'
-                            ? (lang === 'fr' ? 'LIVRÉ' : 'DELIVERED')
-                            : activeTrackingShipment.status === 'Cancelled'
-                              ? (lang === 'fr' ? 'ANNULÉ' : 'CANCELLED')
-                              : activeTrackingShipment.status}
-                  </span>
-                </div>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
-                  {t('modal_mode')} <strong>{activeTrackingShipment.transportMode.toUpperCase()}</strong> &bull; {t('modal_route')} {activeTrackingShipment.originCity || activeTrackingShipment.originLocation?.city} &rarr; {activeTrackingShipment.destinationCity || activeTrackingShipment.destLocation?.city}
-                </p>
-              </div>
+            {(() => {
+              const regionCfg = getShipmentRegionConfig(activeTrackingShipment);
+              const isFR = regionCfg.lang === 'fr';
+              const statusCfg = getProportionalStatusConfig(activeTrackingShipment, isFR);
+              const modeLabel = formatTransportModeLabel(activeTrackingShipment.transportMode, isFR);
+              const origStr = activeTrackingShipment.originCity || activeTrackingShipment.originLocation?.city || 'Origin';
+              const destStr = activeTrackingShipment.destinationCity || activeTrackingShipment.destLocation?.city || 'Destination';
 
-              <button 
-                onClick={() => setActiveTrackingShipment(null)}
-                style={{ background: '#F1F5F9', border: '1px solid #CBD5E1', padding: '6px 14px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
-              >
-                <X size={18} /> {t('modal_close')}
-              </button>
-            </div>
+              return (
+                <div className="flex-between" style={{ marginBottom: '20px', borderBottom: '2px solid var(--primary-cyan)', paddingBottom: '14px' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <h2 style={{ fontSize: '1.8rem', color: 'var(--primary-navy)', margin: 0 }}>
+                        {isFR ? 'Expédition' : 'Shipment'} {activeTrackingShipment.id}
+                      </h2>
+                      <span className={`badge ${statusCfg.badgeClass}`}>
+                        {statusCfg.badgeLabel}
+                      </span>
+                    </div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
+                      {isFR ? 'Mode de Transport :' : 'Transport Mode:'} <strong>{modeLabel}</strong> &bull; {isFR ? 'Itinéraire Officiel :' : 'Official Route:'} <strong>{origStr}</strong> &rarr; <strong>{destStr}</strong>
+                    </p>
+                  </div>
+
+                  <button 
+                    onClick={() => setActiveTrackingShipment(null)}
+                    style={{ background: '#F1F5F9', border: '1px solid #CBD5E1', padding: '6px 14px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
+                  >
+                    <X size={18} /> {isFR ? 'Fermer' : 'Close'}
+                  </button>
+                </div>
+              );
+            })()}
 
             {/* Interactive Client Map */}
             <ClientMap shipment={activeTrackingShipment} />

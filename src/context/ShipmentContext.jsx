@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { INITIAL_SHIPMENTS } from '../utils/mockData';
 import { interpolatePosition, calculateRatioFromCoords } from '../utils/geo';
 import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
+import { calcFreightDimensions, calcEstArrivalDate, computeShipmentTelemetry } from '../utils/cargoUtils';
 
 const ShipmentContext = createContext();
 
@@ -13,9 +14,14 @@ export const ShipmentProvider = ({ children }) => {
   const [shipments, setShipments] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map(s => computeShipmentTelemetry(s));
+        }
+      }
     } catch (e) {}
-    return INITIAL_SHIPMENTS;
+    return INITIAL_SHIPMENTS.map(s => computeShipmentTelemetry(s));
   });
 
   const [activeShipmentId, setActiveShipmentId] = useState("SP-88219U");
@@ -35,8 +41,9 @@ export const ShipmentProvider = ({ children }) => {
 
         if (!error && Array.isArray(data) && data.length > 0 && isMounted) {
           const list = data.map(row => (typeof row.data === 'string' ? JSON.parse(row.data) : row.data));
-          setShipments(list);
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch (e) {}
+          const computedList = list.map(s => computeShipmentTelemetry(s));
+          setShipments(computedList);
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(computedList)); } catch (e) {}
           return true;
         }
       } catch (err) {
@@ -68,8 +75,9 @@ export const ShipmentProvider = ({ children }) => {
             if (contentType && contentType.includes("application/json")) {
               const result = await res.json();
               if (result.success && Array.isArray(result.data) && result.data.length > 0 && isMounted) {
-                setShipments(result.data);
-                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(result.data)); } catch (e) {}
+                const computed = result.data.map(s => computeShipmentTelemetry(s));
+                setShipments(computed);
+                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(computed)); } catch (e) {}
               }
             }
           }
@@ -97,8 +105,9 @@ export const ShipmentProvider = ({ children }) => {
         channelRef.current = new BroadcastChannel(CHANNEL_NAME);
         channelRef.current.onmessage = (event) => {
           if (event.data && event.data.type === 'SHIPMENTS_UPDATE' && Array.isArray(event.data.data)) {
-            setShipments(event.data.data);
-            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(event.data.data)); } catch (e) {}
+            const computed = event.data.data.map(s => computeShipmentTelemetry(s));
+            setShipments(computed);
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(computed)); } catch (e) {}
           }
         };
       }
@@ -109,7 +118,8 @@ export const ShipmentProvider = ({ children }) => {
         try {
           const parsed = JSON.parse(e.newValue);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setShipments(parsed);
+            const computed = parsed.map(s => computeShipmentTelemetry(s));
+            setShipments(computed);
           }
         } catch (err) {}
       }
@@ -125,57 +135,23 @@ export const ShipmentProvider = ({ children }) => {
     };
   }, []);
 
-  // 3. Real-Time Vehicle Physics Telemetry Simulation Loop
+  // 3. Real-Time Vehicle Physics Telemetry Simulation Loop based on real durationHours
   useEffect(() => {
     const timer = setInterval(() => {
       setShipments(prevShipments => {
         let hasChanges = false;
 
         const updated = prevShipments.map(s => {
-          if (s.isPaused || s.status === 'Delivered' || s.status === 'Cancelled' || s.status === 'Payment Pending' || !s.autoMode) {
-            return s;
+          const telemetry = computeShipmentTelemetry(s);
+          if (
+            telemetry.progressPercentage !== s.progressPercentage ||
+            telemetry.status !== s.status ||
+            telemetry.currentCoords?.[0] !== s.currentCoords?.[0] ||
+            telemetry.currentCoords?.[1] !== s.currentCoords?.[1]
+          ) {
+            hasChanges = true;
           }
-
-          hasChanges = true;
-          const currentProgress = s.progressPercentage || 0;
-
-          if (currentProgress >= 100) {
-            return {
-              ...s,
-              progressPercentage: 100,
-              status: 'Delivered',
-              currentCoords: s.destCoords
-            };
-          }
-
-          const increment = 0.5 * (s.speedMultiplier || 1);
-          const nextProgress = Math.min(100, currentProgress + increment);
-          const nextCoords = interpolatePosition(s.originCoords, s.destCoords, nextProgress / 100);
-
-          let updatedTimeline = s.timeline || [];
-          if (nextProgress >= 100) {
-            const hasDeliveredItem = updatedTimeline.some(t => t.title.toLowerCase().includes('delivered'));
-            if (!hasDeliveredItem) {
-              updatedTimeline = [
-                ...updatedTimeline,
-                {
-                  id: Date.now(),
-                  timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
-                  location: s.destinationCity || s.destLocation?.city || 'Destination Terminal',
-                  title: "Package Delivered & Consignee Signature Verified",
-                  status: "completed"
-                }
-              ];
-            }
-          }
-
-          return {
-            ...s,
-            progressPercentage: nextProgress,
-            currentCoords: nextCoords,
-            status: nextProgress >= 100 ? 'Delivered' : 'In Transit',
-            timeline: updatedTimeline
-          };
+          return telemetry;
         });
 
         if (hasChanges) {
@@ -225,25 +201,49 @@ export const ShipmentProvider = ({ children }) => {
     const region = (shipmentData.region || 'USA').toUpperCase();
     const suffix = region === 'EUROPE' ? 'E' : 'U';
     const newId = `SP-${Math.floor(10000 + Math.random() * 90000)}${suffix}`;
-    const isShippingPending = shipmentData.freight?.shippingFeeStatus === 'Pending';
-    const isInsurancePending = shipmentData.freight?.insuranceFeeStatus === 'Pending';
-    const initialStatus = (isShippingPending || isInsurancePending) ? 'Payment Pending' : 'In Transit';
+    const depDate = shipmentData.departureDate || new Date().toISOString().substring(0, 10);
+    const depTime = shipmentData.departureTime || new Date().toTimeString().substring(0, 5);
+    const duration = parseFloat(shipmentData.durationHours) || 12;
+
+    const depDateTime = new Date(`${depDate}T${depTime}`).getTime();
+    const nowMs = Date.now();
+
+    let initialStatus = 'In Transit';
+    if (isShippingPending || isInsurancePending) {
+      initialStatus = 'Payment Pending';
+    } else if (!isNaN(depDateTime) && nowMs < depDateTime) {
+      initialStatus = 'Scheduled';
+    }
+
+    const estArrStr = shipmentData.estimatedArrivalDate || calcEstArrivalDate(depDate, depTime, duration, 0, false);
+
+    const rawFreight = shipmentData.freight || {};
+    const computedDimensions = calcFreightDimensions(rawFreight.weightKg, rawFreight.volumeM3, rawFreight.dimensions);
 
     const newShipment = {
       id: newId,
       ...shipmentData,
+      freight: {
+        ...rawFreight,
+        dimensions: computedDimensions
+      },
+      departureDate: depDate,
+      departureTime: depTime,
+      departureDateTime: isNaN(depDateTime) ? new Date().toISOString() : new Date(depDateTime).toISOString(),
+      durationHours: duration,
+      estimatedArrivalDate: estArrStr,
+      hideInsuranceFee: shipmentData.hideInsuranceFee || false,
       progressPercentage: 0,
       currentCoords: shipmentData.originCoords,
       status: initialStatus,
       isPaused: false,
       pauseReason: (isShippingPending || isInsurancePending) ? 'Awaiting settlement of shipping fee and insurance coverage policy' : '',
       autoMode: true,
-      speedMultiplier: 10,
       createdAt: new Date().toISOString(),
       timeline: [
         {
           id: 1,
-          timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
+          timestamp: `${depDate} ${depTime}`,
           location: shipmentData.originCity || shipmentData.originLocation?.city || 'Origin Terminal',
           title: (isShippingPending || isInsurancePending) ? "Shipment Manifest Generated - Payment Settlement Pending" : "Shipment Manifest Generated & Carrier Dispatched",
           status: "completed"
@@ -263,11 +263,30 @@ export const ShipmentProvider = ({ children }) => {
     const updated = shipments.map(s => {
       if (s.id === id) {
         const merged = { ...s, ...fields };
+        if (merged.freight) {
+          merged.freight.dimensions = calcFreightDimensions(merged.freight.weightKg, merged.freight.volumeM3, merged.freight.dimensions);
+        }
+        
+        // Recalculate estimatedArrivalDate if departureDate, departureTime, or durationHours change
+        const depDate = merged.departureDate || new Date().toISOString().substring(0, 10);
+        const depTime = merged.departureTime || new Date().toTimeString().substring(0, 5);
+        const duration = parseFloat(merged.durationHours) || 12;
+        const depDateTimeMs = new Date(`${depDate}T${depTime}`).getTime();
+
+        if (!isNaN(depDateTimeMs)) {
+          merged.departureDateTime = new Date(depDateTimeMs).toISOString();
+          if (!fields.estimatedArrivalDate) {
+            merged.estimatedArrivalDate = calcEstArrivalDate(depDate, depTime, duration, merged.progressPercentage, merged.isPaused);
+          }
+        }
+
         const isShippingPending = merged.freight?.shippingFeeStatus === 'Pending';
         const isInsurancePending = merged.freight?.insuranceFeeStatus === 'Pending';
 
         if (isShippingPending || isInsurancePending) {
           merged.status = 'Payment Pending';
+          merged.progressPercentage = 0;
+          merged.currentCoords = merged.originCoords;
         } else if (merged.status === 'Payment Pending') {
           merged.status = merged.progressPercentage >= 100 ? 'Delivered' : 'In Transit';
         }
@@ -316,9 +335,11 @@ export const ShipmentProvider = ({ children }) => {
     const updated = shipments.map(s => {
       if (s.id === id) {
         const nextPaused = !s.isPaused;
+        const newEstArrival = calcEstArrivalDate(s.departureDate, s.departureTime, s.durationHours, s.progressPercentage, nextPaused);
         const merged = {
           ...s,
           isPaused: nextPaused,
+          estimatedArrivalDate: newEstArrival,
           pauseReason: nextPaused ? (pauseReason || s.pauseReason || 'Vehicle operations temporarily paused by dispatch command') : ''
         };
         targetItem = merged;
