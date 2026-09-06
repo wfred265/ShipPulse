@@ -130,8 +130,8 @@ export function getProportionalStatusConfig(shipment, isFR = false) {
       bgColor: '#FEF3C7',
       borderColor: '#FDE68A',
       noticeText: isFR 
-        ? "⚠️ Programmation du départ suspendue : Le règlement des frais de Fret et d'Assurance est obligatoire avant de pouvoir définir les dates et heures de livraison." 
-        : "⚠️ Departure schedule on hold: Full settlement of Freight & Insurance fees is required before setting delivery dates and times."
+        ? "⚠️ Programmation du départ suspendue : Le règlement des frais est obligatoire avant de pouvoir définir les dates et heures de livraison." 
+        : "⚠️ Departure schedule on hold: Full settlement is required before setting delivery dates and times."
     };
   }
 

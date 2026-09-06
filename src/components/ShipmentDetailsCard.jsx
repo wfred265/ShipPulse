@@ -106,7 +106,7 @@ export default function ShipmentDetailsCard({ shipment }) {
             {isFR ? 'BLOCAGE SÉCURITÉ PAIEMENT EN ATTENTE' : 'PAYMENT PENDING SAFETY BLOCK'}
           </div>
           <p style={{ margin: 0, fontSize: '0.88rem', lineHeight: '1.5' }}>
-            {isFR ? 'Attention : Le transport est actuellement suspendu. Les frais de fret ou d\'assurance sont en attente de règlement.' : 'Notice: Shipment transit is on hold. Shipping or insurance fees require settlement before cargo dispatch can proceed.'}
+            {isFR ? 'Attention : Le transport est actuellement suspendu. Les frais de livraison nécessitent un règlement avant le départ du fret.' : 'Notice: Shipment transit is on hold. Shipping fees require settlement before cargo dispatch can proceed.'}
           </p>
         </div>
       )}
@@ -251,7 +251,7 @@ export default function ShipmentDetailsCard({ shipment }) {
 
         {isPaymentBlocked ? (
           <div style={{ background: '#FFF1F2', border: '1px solid #FECDD3', padding: '14px', borderRadius: 'var(--radius-sm)', color: '#9F1239', fontWeight: 700, fontSize: '0.88rem' }}>
-            ⚠️ {isFR ? "Programmation du Trajet Suspendue : La date/heure de départ et d'arrivée seront définies dès le règlement complet des frais (Fret & Assurance)." : "Journey Schedule On Hold: Departure & Arrival dates will be scheduled once full payment (Freight & Insurance) is settled."}
+            ⚠️ {isFR ? "Programmation du Trajet Suspendue : La date/heure de départ et d'arrivée seront définies dès le règlement complet des frais." : "Journey Schedule On Hold: Departure & Arrival dates will be scheduled once full payment is settled."}
           </div>
         ) : (
           (() => {
