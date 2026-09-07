@@ -205,19 +205,22 @@ export const ShipmentProvider = ({ children }) => {
     const depTime = shipmentData.departureTime || new Date().toTimeString().substring(0, 5);
     const duration = parseFloat(shipmentData.durationHours) || 12;
 
+    const rawFreight = shipmentData.freight || {};
+    const isShippingPending = rawFreight.shippingFeeStatus === 'Pending';
+    const isInsurancePending = rawFreight.insuranceFeeStatus === 'Pending';
+    const isPaymentPending = isShippingPending || isInsurancePending || rawFreight.paymentStatus === 'Pending';
+
     const depDateTime = new Date(`${depDate}T${depTime}`).getTime();
     const nowMs = Date.now();
 
     let initialStatus = 'In Transit';
-    if (isShippingPending || isInsurancePending) {
+    if (isPaymentPending) {
       initialStatus = 'Payment Pending';
     } else if (!isNaN(depDateTime) && nowMs < depDateTime) {
       initialStatus = 'Scheduled';
     }
 
     const estArrStr = shipmentData.estimatedArrivalDate || calcEstArrivalDate(depDate, depTime, duration, 0, false);
-
-    const rawFreight = shipmentData.freight || {};
     const computedDimensions = calcFreightDimensions(rawFreight.weightKg, rawFreight.volumeM3, rawFreight.dimensions);
 
     const newShipment = {
@@ -237,7 +240,7 @@ export const ShipmentProvider = ({ children }) => {
       currentCoords: shipmentData.originCoords,
       status: initialStatus,
       isPaused: false,
-      pauseReason: (isShippingPending || isInsurancePending) ? 'Awaiting settlement of shipping fee and insurance coverage policy' : '',
+      pauseReason: isPaymentPending ? 'Awaiting settlement of shipping fee prior to dispatch' : '',
       autoMode: true,
       createdAt: new Date().toISOString(),
       timeline: [
@@ -245,7 +248,7 @@ export const ShipmentProvider = ({ children }) => {
           id: 1,
           timestamp: `${depDate} ${depTime}`,
           location: shipmentData.originCity || shipmentData.originLocation?.city || 'Origin Terminal',
-          title: (isShippingPending || isInsurancePending) ? "Shipment Manifest Generated - Payment Settlement Pending" : "Shipment Manifest Generated & Carrier Dispatched",
+          title: isPaymentPending ? "Shipment Manifest Generated - Payment Settlement Pending" : "Shipment Manifest Generated & Carrier Dispatched",
           status: "completed"
         }
       ]
