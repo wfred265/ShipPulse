@@ -7,11 +7,13 @@ import {
   LogOut, 
   LayoutDashboard,
   Eye,
-  Edit3
+  Edit3,
+  MessageSquare
 } from 'lucide-react';
 import { useShipments } from '../context/ShipmentContext';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useChat } from '../context/ChatContext';
 import AdminMapControl from './AdminMapControl';
 import ShipmentDetailsCard from './ShipmentDetailsCard';
 import PauseAlertModal from './PauseAlertModal';
@@ -19,9 +21,11 @@ import ShipmentFormModal from './ShipmentFormModal';
 import ShipmentEditModal from './ShipmentEditModal';
 import AdminUsersManager from './AdminUsersManager';
 import InvoicePreviewModal from './InvoicePreviewModal';
+import { AdminChatManager } from './AdminChatManager';
 
 export default function AdminDashboard() {
   const { lang, setLang, t } = useLanguage();
+  const { totalUnreadAdminCount } = useChat();
   const { 
     shipments, 
     activeShipmentId, 
@@ -132,13 +136,41 @@ export default function AdminDashboard() {
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                justify: 'center',
+                justifyContent: 'center',
                 gap: '6px',
                 fontSize: '0.82rem',
                 minHeight: '40px'
               }}
             >
               <LayoutDashboard size={15} /> {lang === 'fr' ? 'Commandement Flotte' : 'Fleet Command'}
+            </button>
+
+            <button
+              onClick={() => setActiveAdminTab('chat')}
+              style={{
+                flex: 1,
+                background: activeAdminTab === 'chat' ? 'var(--primary-navy)' : 'transparent',
+                color: activeAdminTab === 'chat' ? '#FFFFFF' : 'var(--text-main)',
+                fontWeight: 700,
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                fontSize: '0.82rem',
+                minHeight: '40px',
+                position: 'relative'
+              }}
+            >
+              <MessageSquare size={15} /> {lang === 'fr' ? 'Chat Support' : 'Live Chat'}
+              {totalUnreadAdminCount > 0 && (
+                <span className="bg-red-500 text-white font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center animate-pulse">
+                  {totalUnreadAdminCount}
+                </span>
+              )}
             </button>
 
             <button
@@ -154,13 +186,13 @@ export default function AdminDashboard() {
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                justify: 'center',
+                justifyContent: 'center',
                 gap: '6px',
                 fontSize: '0.82rem',
                 minHeight: '40px'
               }}
             >
-              <Users size={15} /> {lang === 'fr' ? 'Gestion Personnel' : 'Staff Manager'}
+              <Users size={15} /> {lang === 'fr' ? 'Personnel' : 'Staff'}
             </button>
           </div>
 
@@ -343,7 +375,12 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* View 2: Admin Users Manager */}
+      {/* View 2: Live Support Chat Manager */}
+      {activeAdminTab === 'chat' && (
+        <AdminChatManager currentLang={lang} />
+      )}
+
+      {/* View 3: Admin Users Manager */}
       {activeAdminTab === 'users' && (
         <AdminUsersManager />
       )}

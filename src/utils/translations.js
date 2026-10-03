@@ -212,7 +212,19 @@ export const translations = {
     footer_tagline: "Global cargo operations control & real-time telemetry network.",
     footer_quick_links: "Quick Navigation",
     footer_support: "24/7 Operations Support",
-    footer_rights: "ShipPulse Logistics Inc. All rights reserved."
+    footer_rights: "ShipPulse Logistics Inc. All rights reserved.",
+
+    // Live Chat UI
+    chat_widget_title: "ShipPulse Support Chat",
+    chat_widget_subtitle: "Live agent assistance & cargo tracking",
+    chat_online_status: "Online • Live Support Active",
+    chat_input_placeholder: "Type your message or tracking code (e.g., in SP-XXXXX format)...",
+    chat_send: "Send",
+    chat_admin_title: "Live Support Chat Inbox",
+    chat_admin_subtitle: "Manage client inquiries and reply in real-time across tabs",
+    chat_select_conv: "Select a conversation to start chatting",
+    chat_quick_replies: "Quick Response Templates",
+    chat_tab_label: "Live Chat"
   },
   fr: {
     // Navbar
@@ -427,7 +439,19 @@ export const translations = {
     footer_tagline: "Contrôle des opérations de fret mondial & réseau de télémétrie en temps réel.",
     footer_quick_links: "Navigation Rapide",
     footer_support: "Support Opérationnel 24/7",
-    footer_rights: "ShipPulse Logistics Inc. Tous droits réservés."
+    footer_rights: "ShipPulse Logistics Inc. Tous droits réservés.",
+
+    // Live Chat UI
+    chat_widget_title: "Support Chat ShipPulse",
+    chat_widget_subtitle: "Assistance en direct & suivi de colis",
+    chat_online_status: "En ligne • Support en direct actif",
+    chat_input_placeholder: "Écrivez votre message ou code de suivi (ex: au format SP-XXXXX)...",
+    chat_send: "Envoyer",
+    chat_admin_title: "Messagerie Support en Direct",
+    chat_admin_subtitle: "Gérez les demandes des clients et répondez en temps réel entre les onglets",
+    chat_select_conv: "Sélectionnez une conversation pour échanger",
+    chat_quick_replies: "Modèles de Réponses Rapides",
+    chat_tab_label: "Chat Support"
   }
 };
 
