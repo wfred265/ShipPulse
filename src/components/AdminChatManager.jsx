@@ -80,42 +80,69 @@ export const AdminChatManager = ({ currentLang = 'fr' }) => {
     setReplyText('');
   };
 
-  // Generate Pre-filled Verification Message based on shipment details
+  // Generate Pre-filled Verification Message based on complete shipment details
   const handleGenerateVerificationMessage = () => {
     if (!selectedConv || isVerificationAlreadySent) return;
     const code = selectedConv.trackingCode || 'SP-XXXXX';
     
     let text = '';
     if (currentShipment) {
-      const senderName = ((currentShipment.sender?.firstName || '') + ' ' + (currentShipment.sender?.lastName || '')).trim() || 'Expéditeur';
-      const recipientName = ((currentShipment.recipient?.firstName || '') + ' ' + (currentShipment.recipient?.lastName || '')).trim() || 'Destinataire';
-      const origin = currentShipment.originCity || 'Ville de départ';
-      const dest = currentShipment.destinationCity || 'Ville de destination';
-      const goods = currentShipment.packageDetails?.goodsType || 'Fret marchandise';
-      const weight = currentShipment.packageDetails?.weightKg ? `${currentShipment.packageDetails.weightKg} kg` : '';
+      const senderName = [currentShipment.sender?.firstName, currentShipment.sender?.lastName].filter(Boolean).join(' ') || 'Expéditeur';
+      const senderCompany = currentShipment.sender?.company ? ` (${currentShipment.sender.company})` : '';
+      const senderInfo = `${senderName}${senderCompany}`;
+
+      const recipientName = [currentShipment.recipient?.firstName, currentShipment.recipient?.lastName].filter(Boolean).join(' ') || 'Destinataire';
+      const recipientAddr = currentShipment.recipient?.deliveryAddress ? ` (${currentShipment.recipient.deliveryAddress})` : '';
+      const recipientInfo = `${recipientName}${recipientAddr}`;
+
+      const origin = currentShipment.originCity || currentShipment.originLocation?.city || 'Ville de départ';
+      const dest = currentShipment.destinationCity || currentShipment.destLocation?.city || 'Ville de destination';
       
+      const freightObj = currentShipment.freight || {};
+      const cargoDesc = freightObj.description || (isFR ? 'Fret marchandise général' : 'General cargo freight');
+      const goodsType = freightObj.goodsType ? ` [${freightObj.goodsType}]` : '';
+      
+      const weightStr = freightObj.weightKg ? `${freightObj.weightKg} kg` : '';
+      const volumeStr = freightObj.volumeM3 ? `${freightObj.volumeM3} m³` : '';
+      const weightVol = [weightStr, volumeStr].filter(Boolean).join(' • ');
+
+      const modeMapFR = { airplane: 'Fret Aérien ✈️', boat: 'Ligne Maritime 🚢', truck: 'Transport Routier 🚚', train: 'Fret Ferroviaire 🚂' };
+      const modeMapEN = { airplane: 'Air Freight ✈️', boat: 'Ocean Freight 🚢', truck: 'Road Transport 🚚', train: 'Rail Freight 🚂' };
+      const modeLabel = isFR 
+        ? (modeMapFR[currentShipment.transportMode] || 'Transport Fret') 
+        : (modeMapEN[currentShipment.transportMode] || 'Freight Transport');
+
+      const departureStr = currentShipment.departureDate 
+        ? `${currentShipment.departureDate}${currentShipment.departureTime ? ' ' + (isFR ? 'à' : 'at') + ' ' + currentShipment.departureTime : ''}` 
+        : '';
+      const arrivalStr = currentShipment.estimatedArrivalDate || '';
+
       if (isFR) {
-        text = `Bonjour ! D'après votre code d'expédition [${code}], voici la fiche d'informations identifiée :\n\n` +
-               `📦 FICHE DE CONTRÔLE COLIS :\n` +
-               `👤 Expéditeur : ${senderName} (${origin})\n` +
-               `📍 Destinataire : ${recipientName} (${dest})\n` +
-               `📦 Marchandise : ${goods} ${weight ? '(' + weight + ')' : ''}\n` +
-               `🚚 Trajet officiel : ${origin} ➔ ${dest}\n\n` +
-               `Pouvez-vous nous confirmer s'il s'agit bien de votre colis afin de poursuivre ?`;
+        text = `Bonjour ! D'après votre code d'expédition [${code}], voici la fiche complète d'informations identifiée dans notre système :\n\n` +
+               `📦 FICHE DE CONTRÔLE COLIS & EXPÉDITION :\n` +
+               `👤 Expéditeur : ${senderInfo}\n` +
+               `📍 Destinataire : ${recipientInfo}\n` +
+               `📦 Marchandise : ${cargoDesc}${goodsType}\n` +
+               (weightVol ? `⚖️ Poids & Volume : ${weightVol}\n` : '') +
+               `🚚 Trajet & Mode : ${origin} ➔ ${dest} (${modeLabel})\n` +
+               (departureStr || arrivalStr ? `🗓️ Calendrier : ${departureStr ? 'Départ le ' + departureStr : ''}${departureStr && arrivalStr ? ' | ' : ''}${arrivalStr ? 'Arrivée estimée : ' + arrivalStr : ''}\n\n` : '\n') +
+               `Pouvez-vous nous confirmer qu'il s'agit bien de votre expédition et que vous êtes bien la personne autorisée afin de poursuivre l'assistance ?`;
       } else {
-        text = `Hello! Based on your tracking code [${code}], here are your shipment details:\n\n` +
-               `📦 SHIPMENT VERIFICATION FORM:\n` +
-               `👤 Shipper: ${senderName} (${origin})\n` +
-               `📍 Consignee: ${recipientName} (${dest})\n` +
-               `📦 Cargo Item: ${goods} ${weight ? '(' + weight + ')' : ''}\n` +
-               `🚚 Official Route: ${origin} ➔ ${dest}\n\n` +
-               `Could you please confirm if these details correspond to your shipment?`;
+        text = `Hello! Based on your tracking code [${code}], here are the full shipment details identified in our system:\n\n` +
+               `📦 SHIPMENT VERIFICATION & CARGO FORM:\n` +
+               `👤 Shipper: ${senderInfo}\n` +
+               `📍 Consignee: ${recipientInfo}\n` +
+               `📦 Cargo Item: ${cargoDesc}${goodsType}\n` +
+               (weightVol ? `⚖️ Weight & Volume: ${weightVol}\n` : '') +
+               `🚚 Route & Mode: ${origin} ➔ ${dest} (${modeLabel})\n` +
+               (departureStr || arrivalStr ? `🗓️ Schedule: ${departureStr ? 'Departed ' + departureStr : ''}${departureStr && arrivalStr ? ' | ' : ''}${arrivalStr ? 'Est. Arrival: ' + arrivalStr : ''}\n\n` : '\n') +
+               `Could you please confirm if these details correspond to your shipment and if you are the authorized person to proceed?`;
       }
     } else {
       if (isFR) {
-        text = `Bonjour ! Concernant votre code d'expédition [${code}], pouvez-vous nous confirmer qu'il s'agit bien de votre colis afin de vérifier vos informations d'expédition ?`;
+        text = `Bonjour ! Concernant votre code d'expédition [${code}], pouvez-vous nous confirmer la nature de votre marchandise ainsi que vos coordonnées de destination afin d'identifier votre dossier et poursuivre votre assistance ?`;
       } else {
-        text = `Hello! Regarding your tracking code [${code}], could you please confirm if this is your shipment so we can verify your cargo details?`;
+        text = `Hello! Regarding your tracking code [${code}], could you please confirm your cargo description and delivery destination so we can verify your file and proceed with your support?`;
       }
     }
 
