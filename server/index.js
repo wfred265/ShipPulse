@@ -177,6 +177,98 @@ app.delete('/api/users/:id', (req, res) => {
   }
 });
 
+// ------------------------------------
+// 3. SUPPORT CHATS REST API ENDPOINTS
+// ------------------------------------
+
+// GET /api/chats - Fetch all support chat conversations across all devices
+app.get('/api/chats', (req, res) => {
+  try {
+    const rows = db.prepare('SELECT id, data, updated_at FROM chats ORDER BY updated_at DESC').all();
+    const chats = rows.map(r => JSON.parse(r.data));
+    res.json({ success: true, count: chats.length, data: chats });
+  } catch (err) {
+    console.error("GET /api/chats error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/chats/:id - Fetch single conversation by ID
+app.get('/api/chats/:id', (req, res) => {
+  try {
+    const convId = req.params.id;
+    const row = db.prepare('SELECT data FROM chats WHERE id = ?').get(convId);
+    if (row) {
+      res.json({ success: true, data: JSON.parse(row.data) });
+    } else {
+      res.status(404).json({ success: false, error: "Chat conversation not found." });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/chats - Upsert single chat object or array of chat objects
+app.post('/api/chats', (req, res) => {
+  try {
+    const body = req.body;
+    
+    // Handle array batch update
+    if (Array.isArray(body)) {
+      const stmt = db.prepare(`
+        INSERT INTO chats (id, data, updated_at) 
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = CURRENT_TIMESTAMP
+      `);
+      const transaction = db.transaction((chatsList) => {
+        for (const chat of chatsList) {
+          if (chat && chat.id) {
+            stmt.run(chat.id, JSON.stringify(chat));
+          }
+        }
+      });
+      transaction(body);
+      return res.status(200).json({ success: true, count: body.length });
+    }
+
+    // Single chat upsert
+    const chatObj = body;
+    if (!chatObj || !chatObj.id) {
+      return res.status(400).json({ success: false, error: "Invalid chat payload: missing ID" });
+    }
+
+    const payloadStr = JSON.stringify(chatObj);
+    const stmt = db.prepare(`
+      INSERT INTO chats (id, data, updated_at) 
+      VALUES (?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = CURRENT_TIMESTAMP
+    `);
+    stmt.run(chatObj.id, payloadStr);
+
+    res.status(200).json({ success: true, id: chatObj.id, data: chatObj });
+  } catch (err) {
+    console.error("POST /api/chats error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/chats/:id - Delete a chat conversation
+app.delete('/api/chats/:id', (req, res) => {
+  try {
+    const convId = req.params.id;
+    const stmt = db.prepare('DELETE FROM chats WHERE id = ?');
+    const result = stmt.run(convId);
+
+    if (result.changes > 0) {
+      res.json({ success: true, message: `Chat ${convId} deleted.` });
+    } else {
+      res.status(404).json({ success: false, error: "Chat not found" });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Catch-all SPA fallback for non-API GET routes
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api')) {

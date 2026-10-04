@@ -139,10 +139,27 @@ export const AdminChatManager = ({ currentLang = 'fr' }) => {
                `Could you please confirm if these details correspond to your shipment and if you are the authorized person to proceed?`;
       }
     } else {
-      if (isFR) {
-        text = `Bonjour ! Concernant votre code d'expédition [${code}], pouvez-vous nous confirmer la nature de votre marchandise ainsi que vos coordonnées de destination afin d'identifier votre dossier et poursuivre votre assistance ?`;
+      const hasCode = selectedConv?.trackingCode;
+      if (hasCode) {
+        if (isFR) {
+          text = `Bonjour ! Après vérification approfondie dans notre système logistique, le code d'expédition [${code}] ne correspond à aucun dossier d'expédition actif dans notre base de données.\n\n` +
+                 `⚠️ CODE INVALID OU ERRONÉ :\n` +
+                 `Il s'agit très probablement d'une erreur de saisie ou d'un numéro d'expédition inconnu.\n\n` +
+                 `Pouvez-vous s'il vous plaît vérifier votre bordereau ou récépissé d'expédition et nous renvoyer votre code d'expédition exact (au format SP-XXXXX) afin que nous puissions retrouver votre colis et vous assister ?`;
+        } else {
+          text = `Hello! After checking our logistics database, the tracking code [${code}] does not match any active shipment record in our system.\n\n` +
+                 `⚠️ INVALID OR UNKNOWN TRACKING CODE:\n` +
+                 `This appears to be a typo or an unrecognized shipment number.\n\n` +
+                 `Could you please double-check your shipping receipt or manifest and resend us your exact tracking code (in SP-XXXXX format) so we can locate your shipment and assist you?`;
+        }
       } else {
-        text = `Hello! Regarding your tracking code [${code}], could you please confirm your cargo description and delivery destination so we can verify your file and proceed with your support?`;
+        if (isFR) {
+          text = `Bonjour ! Aucun code d'expédition n'a été identifié dans vos échanges.\n\n` +
+                 `Afin de nous permettre de retrouver votre dossier colis et de vous assister, merci de nous transmettre votre code d'expédition exact (au format SP-XXXXX).`;
+        } else {
+          text = `Hello! No tracking code was identified in your messages.\n\n` +
+                 `To allow us to locate your shipment file and assist you, please send us your exact tracking code (in SP-XXXXX format).`;
+        }
       }
     }
 

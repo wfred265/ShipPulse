@@ -51,6 +51,15 @@ export function initDatabase() {
     });
   }
 
+  // 3. Client & Admin Support Chats Table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chats (
+      id TEXT PRIMARY KEY,
+      data TEXT NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   console.log("✓ Production SQLite Database initialized at server/shippulse.db");
 }
 

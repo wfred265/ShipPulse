@@ -2,8 +2,9 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 
 const ChatContext = createContext();
 
-const STORAGE_KEY = 'shippulse_chats_v2';
-const CHANNEL_NAME = 'shippulse_chat_channel_v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const STORAGE_KEY = 'shippulse_chats_v3';
+const CHANNEL_NAME = 'shippulse_chat_channel_v3';
 
 // Clean initial state for production (no test conversations)
 const INITIAL_CONVERSATIONS = [];
@@ -11,16 +12,14 @@ const INITIAL_CONVERSATIONS = [];
 export const ChatProvider = ({ children }) => {
   const [conversations, setConversations] = useState(() => {
     try {
-      // Purge legacy storage key if present
       localStorage.removeItem('shippulse_chats_v1');
+      localStorage.removeItem('shippulse_chats_v2');
 
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          // Filter out legacy demo conversations
-          const filtered = parsed.filter(c => !c.id.startsWith('conv_demo_'));
-          return filtered;
+          return parsed.filter(c => !c.id.startsWith('conv_demo_'));
         }
       }
     } catch (e) {}
@@ -30,18 +29,44 @@ export const ChatProvider = ({ children }) => {
   const [activeConvId, setActiveConvId] = useState(null);
   const [isBotTyping, setIsBotTyping] = useState(false);
 
-  // Maintain synchronous ref for instant read/write access
   const conversationsRef = useRef(conversations);
   const channelRef = useRef(null);
   const isSendingRef = useRef(false);
 
-  // Keep ref synced whenever state updates
   useEffect(() => {
     conversationsRef.current = conversations;
   }, [conversations]);
 
-  // BroadcastChannel & LocalStorage synchronization across tabs
+  // Sync to local storage, broadcast channel, AND server REST API
+  const saveAndBroadcast = async (updatedConvs) => {
+    try {
+      conversationsRef.current = updatedConvs;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedConvs));
+      
+      if (channelRef.current) {
+        channelRef.current.postMessage({
+          type: 'CHATS_UPDATE',
+          data: updatedConvs,
+          timestamp: Date.now()
+        });
+      }
+
+      // Persist to SQLite Server Database
+      await fetch(`${API_BASE_URL}/chats`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedConvs)
+      });
+    } catch (e) {
+      console.warn("Failed to persist chats to backend server:", e);
+    }
+  };
+
+  // Initial Fetch & Periodic 3-second Polling for Cross-Device Synchronization
   useEffect(() => {
+    let isMounted = true;
+
+    // Cross-tab BroadcastChannel & LocalStorage sync
     try {
       if ('BroadcastChannel' in window) {
         channelRef.current = new BroadcastChannel(CHANNEL_NAME);
@@ -71,7 +96,41 @@ export const ChatProvider = ({ children }) => {
 
     window.addEventListener('storage', handleStorageChange);
 
+    // Fetch conversations from Backend API Server
+    async function syncFromBackendServer() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/chats`);
+        if (res.ok) {
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const result = await res.json();
+            if (result.success && Array.isArray(result.data) && isMounted) {
+              const filtered = result.data.filter(c => !c.id.startsWith('conv_demo_'));
+              
+              const currentStr = JSON.stringify(conversationsRef.current);
+              const fetchedStr = JSON.stringify(filtered);
+
+              if (currentStr !== fetchedStr) {
+                conversationsRef.current = filtered;
+                setConversations(filtered);
+                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered)); } catch (e) {}
+              }
+            }
+          }
+        }
+      } catch (err) {
+        // Silently handle offline / server unreachable
+      }
+    }
+
+    syncFromBackendServer();
+
+    // Poll every 3 seconds for global cross-device synchronization
+    const syncInterval = setInterval(syncFromBackendServer, 3000);
+
     return () => {
+      isMounted = false;
+      clearInterval(syncInterval);
       if (channelRef.current) {
         channelRef.current.close();
       }
@@ -79,21 +138,7 @@ export const ChatProvider = ({ children }) => {
     };
   }, []);
 
-  const saveAndBroadcast = (updatedConvs) => {
-    try {
-      conversationsRef.current = updatedConvs;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedConvs));
-      if (channelRef.current) {
-        channelRef.current.postMessage({
-          type: 'CHATS_UPDATE',
-          data: updatedConvs,
-          timestamp: Date.now()
-        });
-      }
-    } catch (e) {}
-  };
-
-  // Helper to extract tracking code from message string e.g. "SP-60414U"
+  // Helper to extract tracking code from text e.g. "SP-60414U"
   const extractTrackingCode = (text) => {
     if (!text) return null;
     const match = text.match(/SP-[A-Z0-9]{4,7}/i);
@@ -113,11 +158,7 @@ export const ChatProvider = ({ children }) => {
       if (!target) return;
 
       const botMsgCount = target.messages.filter(m => m.sender === 'bot').length;
-      
-      // CRITICAL: Bot MUST ONLY respond to the first 2 messages MAX!
-      if (botMsgCount >= 2) {
-        return;
-      }
+      if (botMsgCount >= 2) return;
 
       const newlyDetectedCode = extractTrackingCode(lastClientMessage);
       const effectiveCode = newlyDetectedCode || target.trackingCode;
@@ -126,12 +167,10 @@ export const ChatProvider = ({ children }) => {
       let botResponseText = '';
 
       if (botMsgCount === 0) {
-        // Step 1 Bot Message: Ask for tracking code format
         botResponseText = isFR
           ? "Bonjour ! Merci d'avoir contacté le support ShipPulse. Afin d'identifier votre dossier et vous aider au mieux, veuillez nous indiquer votre code d'expédition (ex: au format SP-XXXXX)."
           : "Hello! Thank you for contacting ShipPulse Support. To help us identify your shipment and assist you, please provide your tracking number (e.g., in SP-XXXXX format).";
       } else if (botMsgCount === 1) {
-        // Step 2 Bot Message: Code identified, agent will respond shortly
         botResponseText = isFR
           ? `Merci ! Votre code d'expédition ${effectiveCode || 'SP-XXXXX'} a bien été identifié. Un agent de notre équipe support va vous répondre d'ici peu.`
           : `Thank you! Your tracking code ${effectiveCode || 'SP-XXXXX'} has been verified. A live support agent will respond to you shortly.`;
@@ -170,13 +209,18 @@ export const ChatProvider = ({ children }) => {
     const trimmedText = text.trim();
     const nowIso = new Date().toISOString();
     const prevConvs = conversationsRef.current;
+    const detectedCode = optionalTrackingCode || extractTrackingCode(trimmedText);
 
+    // Search existing conversation by convId OR by trackingCode if client is returning/reconnecting
     let targetConv = prevConvs.find(c => c.id === convId);
-    
+    if (!targetConv && detectedCode) {
+      targetConv = prevConvs.find(c => c.trackingCode && c.trackingCode.toUpperCase() === detectedCode.toUpperCase());
+    }
+
     if (!targetConv) {
       targetConv = {
         id: convId || `conv_${Date.now()}`,
-        trackingCode: optionalTrackingCode || extractTrackingCode(trimmedText) || null,
+        trackingCode: detectedCode || null,
         clientName: 'Client Support User',
         clientEmail: null,
         lang: userLang,
@@ -199,12 +243,12 @@ export const ChatProvider = ({ children }) => {
     };
 
     const updatedMessages = [...targetConv.messages, newMsg];
-    const detectedCode = optionalTrackingCode || extractTrackingCode(trimmedText) || targetConv.trackingCode;
+    const finalTrackingCode = detectedCode || targetConv.trackingCode;
 
     const updatedTargetConv = {
       ...targetConv,
       lang: userLang || targetConv.lang || 'fr',
-      trackingCode: detectedCode,
+      trackingCode: finalTrackingCode,
       unreadAdminCount: targetConv.unreadAdminCount + 1,
       lastMessageAt: nowIso,
       messages: updatedMessages
@@ -216,7 +260,6 @@ export const ChatProvider = ({ children }) => {
     saveAndBroadcast(updatedList);
     setConversations(updatedList);
 
-    // Trigger bot if bot has responded < 2 times
     if (currentBotCount < 2) {
       triggerAutoBotResponse(updatedTargetConv.id, trimmedText, userLang);
     }
@@ -284,7 +327,6 @@ export const ChatProvider = ({ children }) => {
     setConversations(result);
   };
 
-  // Total unread messages for Admin badge
   const totalUnreadAdminCount = conversations.reduce((acc, c) => acc + (c.unreadAdminCount || 0), 0);
 
   return (
