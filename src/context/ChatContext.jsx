@@ -263,6 +263,8 @@ export const ChatProvider = ({ children }) => {
     if (currentBotCount < 2) {
       triggerAutoBotResponse(updatedTargetConv.id, trimmedText, userLang);
     }
+
+    return updatedTargetConv;
   };
 
   // 2. Admin Sends Message

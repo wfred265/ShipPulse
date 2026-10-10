@@ -20,7 +20,7 @@ const ModernChatIcon = () => (
 export const ClientChatWidget = ({ currentLang = 'fr' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [inputText, setInputText] = useState('');
-  const [clientConvId] = useState(() => {
+  const [clientConvId, setClientConvId] = useState(() => {
     return localStorage.getItem('shippulse_client_conv_id') || `conv_${Date.now()}`;
   });
 
@@ -29,13 +29,32 @@ export const ClientChatWidget = ({ currentLang = 'fr' }) => {
 
   // Persist client conversation ID
   useEffect(() => {
-    try {
-      localStorage.setItem('shippulse_client_conv_id', clientConvId);
-    } catch (e) {}
+    if (clientConvId) {
+      try {
+        localStorage.setItem('shippulse_client_conv_id', clientConvId);
+      } catch (e) {}
+    }
   }, [clientConvId]);
 
-  // Find active conversation for current client
-  const activeConv = conversations.find(c => c.id === clientConvId);
+  // Robust conversation recovery for returning clients:
+  // 1. Check direct clientConvId match
+  // 2. Or match by active tracking code stored in localStorage
+  let activeConv = conversations.find(c => c.id === clientConvId);
+  if (!activeConv) {
+    const activeTrackingCode = localStorage.getItem('shippulse_active_tracking_code');
+    if (activeTrackingCode) {
+      activeConv = conversations.find(c => c.trackingCode && c.trackingCode.toUpperCase() === activeTrackingCode.toUpperCase());
+    }
+  }
+
+  // Automatically sync clientConvId when an existing conversation is recovered
+  useEffect(() => {
+    if (activeConv && activeConv.id !== clientConvId) {
+      setClientConvId(activeConv.id);
+      try { localStorage.setItem('shippulse_client_conv_id', activeConv.id); } catch (e) {}
+    }
+  }, [activeConv, clientConvId]);
+
   const messages = activeConv ? activeConv.messages : [];
   const unreadCount = activeConv ? activeConv.unreadClientCount : 0;
 
@@ -44,7 +63,7 @@ export const ClientChatWidget = ({ currentLang = 'fr' }) => {
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       if (activeConv && activeConv.unreadClientCount > 0) {
-        markAsReadByClient(clientConvId);
+        markAsReadByClient(activeConv.id || clientConvId);
       }
     }
   }, [messages, isOpen, isBotTyping]);
@@ -53,7 +72,12 @@ export const ClientChatWidget = ({ currentLang = 'fr' }) => {
     e.preventDefault();
     if (!inputText.trim()) return;
 
-    sendMessageAsClient(clientConvId, inputText, currentLang);
+    const activeTrackingCode = localStorage.getItem('shippulse_active_tracking_code') || null;
+    const conv = sendMessageAsClient(clientConvId, inputText, currentLang, activeTrackingCode);
+    if (conv && conv.id && conv.id !== clientConvId) {
+      setClientConvId(conv.id);
+      try { localStorage.setItem('shippulse_client_conv_id', conv.id); } catch (e) {}
+    }
     setInputText('');
   };
 

@@ -85,6 +85,7 @@ export default function ClientLanding() {
 
     if (found) {
       setActiveTrackingShipment(found);
+      try { localStorage.setItem('shippulse_active_tracking_code', found.id); } catch (e) {}
     } else {
       setSearchError(lang === 'fr' 
         ? `Aucune expédition active trouvée avec le code de suivi "${rawQuery}". Veuillez vérifier votre numéro et réessayer.`
@@ -103,6 +104,7 @@ export default function ClientLanding() {
     });
     if (found) {
       setActiveTrackingShipment(found);
+      try { localStorage.setItem('shippulse_active_tracking_code', found.id); } catch (e) {}
     }
   };
 
