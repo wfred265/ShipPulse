@@ -1,28 +1,23 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
 
 const ChatContext = createContext();
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const STORAGE_KEY = 'shippulse_chats_v3';
-const CHANNEL_NAME = 'shippulse_chat_channel_v3';
+const STORAGE_KEY = 'shippulse_chats_v4';
+const CHANNEL_NAME = 'shippulse_chat_channel_v4';
 
-// Clean initial state for production (no test conversations)
 const INITIAL_CONVERSATIONS = [];
 
 export const ChatProvider = ({ children }) => {
   const [conversations, setConversations] = useState(() => {
     try {
-      localStorage.removeItem('shippulse_chats_v1');
-      localStorage.removeItem('shippulse_chats_v2');
-
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed.filter(c => !c.id.startsWith('conv_demo_'));
-        }
+        if (Array.isArray(parsed)) return parsed.filter(c => !c.id.startsWith('conv_demo_'));
       }
-    } catch (e) {}
+    } catch (e) { }
     return INITIAL_CONVERSATIONS;
   });
 
@@ -37,12 +32,40 @@ export const ChatProvider = ({ children }) => {
     conversationsRef.current = conversations;
   }, [conversations]);
 
-  // Sync to local storage, broadcast channel, AND server REST API
-  const saveAndBroadcast = async (updatedConvs) => {
+  // Sauvegarde globale : Supabase (Cloud) + Serveur Local + Cache Navigateur
+  const saveAndBroadcast = async (updatedConvs, targetConv = null) => {
     try {
       conversationsRef.current = updatedConvs;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedConvs));
-      
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedConvs)); } catch (e) { }
+
+      // 1. Sauvegarde dans Supabase Cloud en Temps Réel
+      if (isSupabaseConfigured && supabase) {
+        if (targetConv && targetConv.id) {
+          await supabase.from('chats').upsert({
+            id: targetConv.id,
+            data: JSON.stringify(targetConv),
+            updated_at: new Date().toISOString()
+          });
+        } else {
+          // Sauvegarde par lot
+          for (const c of updatedConvs) {
+            await supabase.from('chats').upsert({
+              id: c.id,
+              data: JSON.stringify(c),
+              updated_at: new Date().toISOString()
+            });
+          }
+        }
+      }
+
+      // 2. Repli API locale Express (si disponible)
+      fetch(`${API_BASE_URL}/chats`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedConvs)
+      }).catch(() => { });
+
+      // 3. Relais onglets locaux
       if (channelRef.current) {
         channelRef.current.postMessage({
           type: 'CHATS_UPDATE',
@@ -50,103 +73,81 @@ export const ChatProvider = ({ children }) => {
           timestamp: Date.now()
         });
       }
-
-      // Persist to SQLite Server Database
-      await fetch(`${API_BASE_URL}/chats`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedConvs)
-      });
     } catch (e) {
-      console.warn("Failed to persist chats to backend server:", e);
+      console.warn("Erreur saveAndBroadcast:", e);
     }
   };
 
-  // Initial Fetch & Periodic 3-second Polling for Cross-Device Synchronization
+  // Chargement et écoute Realtime Supabase
   useEffect(() => {
     let isMounted = true;
 
-    // Cross-tab BroadcastChannel & LocalStorage sync
-    try {
-      if ('BroadcastChannel' in window) {
-        channelRef.current = new BroadcastChannel(CHANNEL_NAME);
-        channelRef.current.onmessage = (event) => {
-          if (event.data && event.data.type === 'CHATS_UPDATE' && Array.isArray(event.data.data)) {
-            const filtered = event.data.data.filter(c => !c.id.startsWith('conv_demo_'));
-            conversationsRef.current = filtered;
-            setConversations(filtered);
-            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered)); } catch (e) {}
-          }
-        };
-      }
-    } catch (e) {}
-
-    const handleStorageChange = (e) => {
-      if (e.key === STORAGE_KEY && e.newValue) {
-        try {
-          const parsed = JSON.parse(e.newValue);
-          if (Array.isArray(parsed)) {
-            const filtered = parsed.filter(c => !c.id.startsWith('conv_demo_'));
-            conversationsRef.current = filtered;
-            setConversations(filtered);
-          }
-        } catch (err) {}
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-
-    // Fetch conversations from Backend API Server
-    async function syncFromBackendServer() {
+    async function loadFromSupabase() {
+      if (!isSupabaseConfigured || !supabase) return false;
       try {
-        const res = await fetch(`${API_BASE_URL}/chats`);
-        if (res.ok) {
-          const contentType = res.headers.get("content-type");
-          if (contentType && contentType.includes("application/json")) {
-            const result = await res.json();
-            if (result.success && Array.isArray(result.data) && isMounted) {
-              const filtered = result.data.filter(c => !c.id.startsWith('conv_demo_'));
-              
-              const currentStr = JSON.stringify(conversationsRef.current);
-              const fetchedStr = JSON.stringify(filtered);
+        const { data, error } = await supabase
+          .from('chats')
+          .select('*')
+          .order('updated_at', { ascending: false });
 
-              if (currentStr !== fetchedStr) {
-                conversationsRef.current = filtered;
-                setConversations(filtered);
-                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered)); } catch (e) {}
-              }
-            }
-          }
+        if (!error && Array.isArray(data) && isMounted) {
+          const list = data.map(r => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+          const filtered = list.filter(c => c && c.id && !c.id.startsWith('conv_demo_'));
+          conversationsRef.current = filtered;
+          setConversations(filtered);
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered)); } catch (e) { }
+          return true;
         }
       } catch (err) {
-        // Silently handle offline / server unreachable
+        console.warn("Supabase chat fetch error:", err);
       }
+      return false;
     }
 
-    syncFromBackendServer();
+    loadFromSupabase();
 
-    // Poll every 3 seconds for global cross-device synchronization
-    const syncInterval = setInterval(syncFromBackendServer, 3000);
+    // Abonnement aux WebSockets Supabase pour recevoir les messages en DIRECT
+    let realTimeChannel = null;
+    if (isSupabaseConfigured && supabase) {
+      realTimeChannel = supabase
+        .channel('public:chats')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'chats' }, () => {
+          loadFromSupabase();
+        })
+        .subscribe();
+    }
+
+    // Repli de synchronisation périodique toutes les 3s
+    const syncInterval = setInterval(() => {
+      if (isSupabaseConfigured && supabase) {
+        loadFromSupabase();
+      } else {
+        fetch(`${API_BASE_URL}/chats`)
+          .then(res => res.json())
+          .then(res => {
+            if (res.success && Array.isArray(res.data) && isMounted) {
+              const filtered = res.data.filter(c => !c.id.startsWith('conv_demo_'));
+              conversationsRef.current = filtered;
+              setConversations(filtered);
+            }
+          })
+          .catch(() => { });
+      }
+    }, 3000);
 
     return () => {
       isMounted = false;
       clearInterval(syncInterval);
-      if (channelRef.current) {
-        channelRef.current.close();
-      }
-      window.removeEventListener('storage', handleStorageChange);
+      if (realTimeChannel) supabase.removeChannel(realTimeChannel);
     };
   }, []);
 
-  // Helper to extract tracking code from text e.g. "SP-60414U"
   const extractTrackingCode = (text) => {
     if (!text) return null;
     const match = text.match(/SP-[A-Z0-9]{4,7}/i);
-    if (match) return match[0].toUpperCase();
-    return null;
+    return match ? match[0].toUpperCase() : null;
   };
 
-  // Automated Bot Response Logic (MAX 2 RESPONSES PER CONVERSATION)
   const triggerAutoBotResponse = (convId, lastClientMessage, langOverride = 'fr') => {
     setIsBotTyping(true);
 
@@ -165,7 +166,6 @@ export const ChatProvider = ({ children }) => {
       const isFR = (langOverride || target.lang || 'fr') === 'fr';
 
       let botResponseText = '';
-
       if (botMsgCount === 0) {
         botResponseText = isFR
           ? "Bonjour ! Merci d'avoir contacté le support ShipPulse. Afin d'identifier votre dossier et vous aider au mieux, veuillez nous indiquer votre code d'expédition (ex: au format SP-XXXXX)."
@@ -194,16 +194,14 @@ export const ChatProvider = ({ children }) => {
       };
 
       const result = [updated, ...currentConvs.filter(c => c.id !== convId)];
-      saveAndBroadcast(result);
+      saveAndBroadcast(result, updated);
       setConversations(result);
     }, 800);
   };
 
-  // 1. Client Sends Message
   const sendMessageAsClient = (convId, text, userLang = 'fr', optionalTrackingCode = null) => {
     if (!text || !text.trim() || isSendingRef.current) return;
     isSendingRef.current = true;
-
     setTimeout(() => { isSendingRef.current = false; }, 300);
 
     const trimmedText = text.trim();
@@ -211,7 +209,6 @@ export const ChatProvider = ({ children }) => {
     const prevConvs = conversationsRef.current;
     const detectedCode = optionalTrackingCode || extractTrackingCode(trimmedText);
 
-    // Search existing conversation by convId OR by trackingCode if client is returning/reconnecting
     let targetConv = prevConvs.find(c => c.id === convId);
     if (!targetConv && detectedCode) {
       targetConv = prevConvs.find(c => c.trackingCode && c.trackingCode.toUpperCase() === detectedCode.toUpperCase());
@@ -242,22 +239,19 @@ export const ChatProvider = ({ children }) => {
       timestamp: nowIso
     };
 
-    const updatedMessages = [...targetConv.messages, newMsg];
-    const finalTrackingCode = detectedCode || targetConv.trackingCode;
-
     const updatedTargetConv = {
       ...targetConv,
       lang: userLang || targetConv.lang || 'fr',
-      trackingCode: finalTrackingCode,
+      trackingCode: detectedCode || targetConv.trackingCode,
       unreadAdminCount: targetConv.unreadAdminCount + 1,
       lastMessageAt: nowIso,
-      messages: updatedMessages
+      messages: [...targetConv.messages, newMsg]
     };
 
     const otherConvs = prevConvs.filter(c => c.id !== updatedTargetConv.id);
     const updatedList = [updatedTargetConv, ...otherConvs];
 
-    saveAndBroadcast(updatedList);
+    saveAndBroadcast(updatedList, updatedTargetConv);
     setConversations(updatedList);
 
     if (currentBotCount < 2) {
@@ -267,7 +261,6 @@ export const ChatProvider = ({ children }) => {
     return updatedTargetConv;
   };
 
-  // 2. Admin Sends Message
   const sendMessageAsAdmin = (convId, text) => {
     if (!text || !text.trim()) return;
     const trimmedText = text.trim();
@@ -293,39 +286,29 @@ export const ChatProvider = ({ children }) => {
     };
 
     const result = [updatedConv, ...prevConvs.filter(c => c.id !== convId)];
-    saveAndBroadcast(result);
+    saveAndBroadcast(result, updatedConv);
     setConversations(result);
   };
 
-  // Mark conversation as read by Admin
   const markAsReadByAdmin = (convId) => {
     const prevConvs = conversationsRef.current;
     const targetConv = prevConvs.find(c => c.id === convId);
     if (!targetConv || targetConv.unreadAdminCount === 0) return;
 
-    const updatedConv = {
-      ...targetConv,
-      unreadAdminCount: 0
-    };
-
+    const updatedConv = { ...targetConv, unreadAdminCount: 0 };
     const result = prevConvs.map(c => c.id === convId ? updatedConv : c);
-    saveAndBroadcast(result);
+    saveAndBroadcast(result, updatedConv);
     setConversations(result);
   };
 
-  // Mark conversation as read by Client
   const markAsReadByClient = (convId) => {
     const prevConvs = conversationsRef.current;
     const targetConv = prevConvs.find(c => c.id === convId);
     if (!targetConv || targetConv.unreadClientCount === 0) return;
 
-    const updatedConv = {
-      ...targetConv,
-      unreadClientCount: 0
-    };
-
+    const updatedConv = { ...targetConv, unreadClientCount: 0 };
     const result = prevConvs.map(c => c.id === convId ? updatedConv : c);
-    saveAndBroadcast(result);
+    saveAndBroadcast(result, updatedConv);
     setConversations(result);
   };
 
@@ -350,9 +333,6 @@ export const ChatProvider = ({ children }) => {
 
 export const useChat = () => {
   const context = useContext(ChatContext);
-  if (!context) {
-    throw new Error('useChat must be used within a ChatProvider');
-  }
+  if (!context) throw new Error('useChat must be used within a ChatProvider');
   return context;
 };
-
