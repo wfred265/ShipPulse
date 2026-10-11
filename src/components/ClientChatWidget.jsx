@@ -337,7 +337,8 @@ export const ClientChatWidget = ({ currentLang = 'fr' }) => {
                 border: '1px solid #334155',
                 borderRadius: '10px',
                 padding: '10px 14px',
-                fontSize: '0.82rem',
+                fontSize: '16px',
+                touchAction: 'manipulation',
                 color: '#FFFFFF',
                 outline: 'none',
                 fontFamily: 'inherit'
@@ -541,6 +542,12 @@ export const ClientChatWidget = ({ currentLang = 'fr' }) => {
         }
 
         @media (max-width: 640px) {
+          .client-chat-window input[type="text"],
+          .client-chat-window textarea {
+            font-size: 16px !important;
+            touch-action: manipulation;
+          }
+
           .client-chat-window {
             right: 12px !important;
             left: 12px !important;

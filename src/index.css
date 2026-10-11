@@ -377,6 +377,17 @@ body {
   }
 
   .glass-input {
-    font-size: 0.9rem;
+    font-size: 16px !important;
+  }
+}
+
+/* Global Mobile Auto-Zoom Prevention (iOS Safari & Android Chrome) */
+@media screen and (max-width: 768px) {
+  input,
+  select,
+  textarea,
+  .glass-input {
+    font-size: 16px !important;
+    touch-action: manipulation;
   }
 }

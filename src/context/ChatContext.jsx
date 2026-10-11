@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
+import { detectLanguage } from '../utils/translator';
 
 const ChatContext = createContext();
 
@@ -239,9 +240,10 @@ export const ChatProvider = ({ children }) => {
       timestamp: nowIso
     };
 
+    const detectedLang = detectLanguage(trimmedText, userLang || targetConv.lang || 'fr');
     const updatedTargetConv = {
       ...targetConv,
-      lang: userLang || targetConv.lang || 'fr',
+      lang: detectedLang || userLang || targetConv.lang || 'fr',
       trackingCode: detectedCode || targetConv.trackingCode,
       unreadAdminCount: targetConv.unreadAdminCount + 1,
       lastMessageAt: nowIso,
@@ -255,13 +257,13 @@ export const ChatProvider = ({ children }) => {
     setConversations(updatedList);
 
     if (currentBotCount < 2) {
-      triggerAutoBotResponse(updatedTargetConv.id, trimmedText, userLang);
+      triggerAutoBotResponse(updatedTargetConv.id, trimmedText, detectedLang);
     }
 
     return updatedTargetConv;
   };
 
-  const sendMessageAsAdmin = (convId, text) => {
+  const sendMessageAsAdmin = (convId, text, metadata = {}) => {
     if (!text || !text.trim()) return;
     const trimmedText = text.trim();
     const nowIso = new Date().toISOString();
@@ -275,6 +277,7 @@ export const ChatProvider = ({ children }) => {
       sender: 'admin',
       senderName: 'Support Agent (Admin)',
       text: trimmedText,
+      ...metadata,
       timestamp: nowIso
     };
 

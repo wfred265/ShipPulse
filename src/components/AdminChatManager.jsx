@@ -3,8 +3,9 @@ import { useChat } from '../context/ChatContext';
 import { useShipments } from '../context/ShipmentContext';
 import { 
   MessageSquare, Send, Headphones, ShieldCheck, User, Search, 
-  ArrowLeft, FileCheck, CheckCircle2, AlertCircle
+  ArrowLeft, FileCheck, CheckCircle2, AlertCircle, Globe, Loader2
 } from 'lucide-react';
+import { translateText, detectLanguage } from '../utils/translator';
 
 export const AdminChatManager = ({ currentLang = 'fr' }) => {
   const { 
@@ -20,6 +21,8 @@ export const AdminChatManager = ({ currentLang = 'fr' }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [replyText, setReplyText] = useState('');
   const [mobileView, setMobileView] = useState('list'); // 'list' | 'thread'
+  const [autoTranslate, setAutoTranslate] = useState(true);
+  const [isTranslating, setIsTranslating] = useState(false);
   const messagesEndRef = useRef(null);
 
   const isFR = currentLang === 'fr';
@@ -35,6 +38,13 @@ export const AdminChatManager = ({ currentLang = 'fr' }) => {
   });
 
   const selectedConv = conversations.find(c => c.id === activeConvId) || conversations[0];
+
+  // Detect or determine client language
+  const clientTextSnippet = selectedConv?.messages
+    ? selectedConv.messages.filter(m => m.sender === 'client').map(m => m.text).join(' ')
+    : '';
+  const clientLang = selectedConv?.lang || (clientTextSnippet ? detectLanguage(clientTextSnippet, 'fr') : 'fr');
+  const isClientFR = clientLang === 'fr';
 
   // Lookup matching shipment by tracking code in database
   const currentShipment = shipments.find(s => 
@@ -72,34 +82,59 @@ export const AdminChatManager = ({ currentLang = 'fr' }) => {
     setMobileView('thread');
   };
 
-  const handleSendReply = (e) => {
+  const handleSendReply = async (e) => {
     e.preventDefault();
-    if (!replyText.trim() || !selectedConv) return;
+    if (!replyText.trim() || !selectedConv || isTranslating) return;
 
-    sendMessageAsAdmin(selectedConv.id, replyText);
+    const originalText = replyText.trim();
+    let messageToSend = originalText;
+    const adminLang = currentLang || 'fr';
+    let wasTranslated = false;
+
+    if (autoTranslate && clientLang !== adminLang) {
+      setIsTranslating(true);
+      try {
+        const translated = await translateText(originalText, adminLang, clientLang);
+        if (translated && translated.trim()) {
+          messageToSend = translated.trim();
+          wasTranslated = (messageToSend !== originalText);
+        }
+      } catch (err) {
+        console.warn("[AdminChatManager] Auto-translation error:", err);
+      } finally {
+        setIsTranslating(false);
+      }
+    }
+
+    sendMessageAsAdmin(selectedConv.id, messageToSend, {
+      originalText: wasTranslated ? originalText : undefined,
+      translated: wasTranslated,
+      sourceLang: adminLang,
+      targetLang: clientLang
+    });
     setReplyText('');
   };
 
-  // Generate Pre-filled Verification Message based on complete shipment details
+  // Generate Pre-filled Verification Message based on complete shipment details (in Client's language)
   const handleGenerateVerificationMessage = () => {
     if (!selectedConv || isVerificationAlreadySent) return;
     const code = selectedConv.trackingCode || 'SP-XXXXX';
     
     let text = '';
     if (currentShipment) {
-      const senderName = [currentShipment.sender?.firstName, currentShipment.sender?.lastName].filter(Boolean).join(' ') || 'Expéditeur';
+      const senderName = [currentShipment.sender?.firstName, currentShipment.sender?.lastName].filter(Boolean).join(' ') || (isClientFR ? 'Expéditeur' : 'Shipper');
       const senderCompany = currentShipment.sender?.company ? ` (${currentShipment.sender.company})` : '';
       const senderInfo = `${senderName}${senderCompany}`;
 
-      const recipientName = [currentShipment.recipient?.firstName, currentShipment.recipient?.lastName].filter(Boolean).join(' ') || 'Destinataire';
+      const recipientName = [currentShipment.recipient?.firstName, currentShipment.recipient?.lastName].filter(Boolean).join(' ') || (isClientFR ? 'Destinataire' : 'Consignee');
       const recipientAddr = currentShipment.recipient?.deliveryAddress ? ` (${currentShipment.recipient.deliveryAddress})` : '';
       const recipientInfo = `${recipientName}${recipientAddr}`;
 
-      const origin = currentShipment.originCity || currentShipment.originLocation?.city || 'Ville de départ';
-      const dest = currentShipment.destinationCity || currentShipment.destLocation?.city || 'Ville de destination';
+      const origin = currentShipment.originCity || currentShipment.originLocation?.city || (isClientFR ? 'Ville de départ' : 'Origin City');
+      const dest = currentShipment.destinationCity || currentShipment.destLocation?.city || (isClientFR ? 'Ville de destination' : 'Destination City');
       
       const freightObj = currentShipment.freight || {};
-      const cargoDesc = freightObj.description || (isFR ? 'Fret marchandise général' : 'General cargo freight');
+      const cargoDesc = freightObj.description || (isClientFR ? 'Fret marchandise général' : 'General cargo freight');
       const goodsType = freightObj.goodsType ? ` [${freightObj.goodsType}]` : '';
       
       const weightStr = freightObj.weightKg ? `${freightObj.weightKg} kg` : '';
@@ -108,16 +143,16 @@ export const AdminChatManager = ({ currentLang = 'fr' }) => {
 
       const modeMapFR = { airplane: 'Fret Aérien ✈️', boat: 'Ligne Maritime 🚢', truck: 'Transport Routier 🚚', train: 'Fret Ferroviaire 🚂' };
       const modeMapEN = { airplane: 'Air Freight ✈️', boat: 'Ocean Freight 🚢', truck: 'Road Transport 🚚', train: 'Rail Freight 🚂' };
-      const modeLabel = isFR 
+      const modeLabel = isClientFR 
         ? (modeMapFR[currentShipment.transportMode] || 'Transport Fret') 
         : (modeMapEN[currentShipment.transportMode] || 'Freight Transport');
 
       const departureStr = currentShipment.departureDate 
-        ? `${currentShipment.departureDate}${currentShipment.departureTime ? ' ' + (isFR ? 'à' : 'at') + ' ' + currentShipment.departureTime : ''}` 
+        ? `${currentShipment.departureDate}${currentShipment.departureTime ? ' ' + (isClientFR ? 'à' : 'at') + ' ' + currentShipment.departureTime : ''}` 
         : '';
       const arrivalStr = currentShipment.estimatedArrivalDate || '';
 
-      if (isFR) {
+      if (isClientFR) {
         text = `Bonjour ! D'après votre code d'expédition [${code}], voici la fiche complète d'informations identifiée dans notre système :\n\n` +
                `📦 FICHE DE CONTRÔLE COLIS & EXPÉDITION :\n` +
                `👤 Expéditeur : ${senderInfo}\n` +
@@ -141,7 +176,7 @@ export const AdminChatManager = ({ currentLang = 'fr' }) => {
     } else {
       const hasCode = selectedConv?.trackingCode;
       if (hasCode) {
-        if (isFR) {
+        if (isClientFR) {
           text = `Bonjour ! Après vérification approfondie dans notre système logistique, le code d'expédition [${code}] ne correspond à aucun dossier d'expédition actif dans notre base de données.\n\n` +
                  `⚠️ CODE INVALID OU ERRONÉ :\n` +
                  `Il s'agit très probablement d'une erreur de saisie ou d'un numéro d'expédition inconnu.\n\n` +
@@ -153,7 +188,7 @@ export const AdminChatManager = ({ currentLang = 'fr' }) => {
                  `Could you please double-check your shipping receipt or manifest and resend us your exact tracking code (in SP-XXXXX format) so we can locate your shipment and assist you?`;
         }
       } else {
-        if (isFR) {
+        if (isClientFR) {
           text = `Bonjour ! Aucun code d'expédition n'a été identifié dans vos échanges.\n\n` +
                  `Afin de nous permettre de retrouver votre dossier colis et de vous assister, merci de nous transmettre votre code d'expédition exact (au format SP-XXXXX).`;
         } else {
@@ -206,7 +241,8 @@ export const AdminChatManager = ({ currentLang = 'fr' }) => {
                 border: '1px solid #334155',
                 borderRadius: '8px',
                 padding: '8px 10px 8px 32px',
-                fontSize: '0.78rem',
+                fontSize: '16px',
+                touchAction: 'manipulation',
                 color: '#F8FAFC',
                 outline: 'none',
                 fontFamily: 'inherit'
@@ -493,12 +529,69 @@ export const AdminChatManager = ({ currentLang = 'fr' }) => {
                       boxShadow: '0 4px 14px rgba(0,0,0,0.2)'
                     }}
                   >
-                    {msg.text}
+                    <div>{msg.text}</div>
+                    {msg.translated && msg.originalText && (
+                      <div style={{
+                        marginTop: '6px',
+                        paddingTop: '6px',
+                        borderTop: '1px solid rgba(255, 255, 255, 0.25)',
+                        fontSize: '0.72rem',
+                        opacity: 0.92,
+                        fontStyle: 'italic',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                        <Globe size={11} />
+                        <span>{isFR ? 'Original saisi :' : 'Original input:'} "{msg.originalText}"</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
             })}
             <div ref={messagesEndRef} />
+          </div>
+
+          {/* Live Translation Status Bar */}
+          <div style={{
+            padding: '6px 14px',
+            background: '#070C18',
+            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '0.73rem',
+            color: '#94A3B8'
+          }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                checked={autoTranslate}
+                onChange={(e) => setAutoTranslate(e.target.checked)}
+                style={{ accentColor: '#00A8E8', width: '15px', height: '15px', cursor: 'pointer' }}
+              />
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Globe size={13} color="#00A8E8" />
+                <span>{isFR ? 'Traduction automatique vers le client :' : 'Auto-translate to client:'}</span>
+                <strong style={{
+                  color: isClientFR ? '#10B981' : '#38BDF8',
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  padding: '1px 6px',
+                  borderRadius: '4px',
+                  fontFamily: 'monospace'
+                }}>
+                  {isClientFR ? '🇫🇷 Français (FR)' : '🇬🇧 English (EN)'}
+                </strong>
+              </span>
+            </label>
+
+            {autoTranslate && (
+              <span style={{ fontSize: '0.68rem', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981', boxShadow: '0 0 6px #10B981' }} />
+                <span className="hide-mobile-text">{isFR ? 'Traduction directe activée' : 'Direct translation active'}</span>
+              </span>
+            )}
           </div>
 
           {/* Reply Form Input */}
@@ -515,17 +608,19 @@ export const AdminChatManager = ({ currentLang = 'fr' }) => {
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               placeholder={
-                isFR
-                  ? "Répondre au client..."
-                  : "Reply to client..."
+                isTranslating
+                  ? (isFR ? "Traduction en cours..." : "Translating...")
+                  : (isFR ? "Répondre au client..." : "Reply to client...")
               }
+              disabled={isTranslating}
               style={{
                 flex: 1,
                 background: '#0F172A',
                 border: '1px solid #334155',
                 borderRadius: '10px',
                 padding: '10px 14px',
-                fontSize: '0.82rem',
+                fontSize: '16px',
+                touchAction: 'manipulation',
                 color: '#FFFFFF',
                 outline: 'none',
                 fontFamily: 'inherit',
@@ -538,13 +633,14 @@ export const AdminChatManager = ({ currentLang = 'fr' }) => {
               <button
                 type="button"
                 onClick={handleGenerateVerificationMessage}
+                disabled={isTranslating}
                 style={{
                   background: 'rgba(0, 168, 232, 0.15)',
                   border: '1px solid rgba(0, 168, 232, 0.4)',
                   color: '#00A8E8',
                   borderRadius: '10px',
                   padding: '10px 12px',
-                  cursor: 'pointer',
+                  cursor: isTranslating ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -560,9 +656,9 @@ export const AdminChatManager = ({ currentLang = 'fr' }) => {
 
             <button
               type="submit"
-              disabled={!replyText.trim()}
+              disabled={!replyText.trim() || isTranslating}
               style={{
-                background: replyText.trim()
+                background: replyText.trim() && !isTranslating
                   ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
                   : '#334155',
                 color: '#FFFFFF',
@@ -571,7 +667,7 @@ export const AdminChatManager = ({ currentLang = 'fr' }) => {
                 padding: '10px 16px',
                 fontSize: '0.8rem',
                 fontWeight: 700,
-                cursor: replyText.trim() ? 'pointer' : 'not-allowed',
+                cursor: replyText.trim() && !isTranslating ? 'pointer' : 'not-allowed',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
@@ -580,8 +676,10 @@ export const AdminChatManager = ({ currentLang = 'fr' }) => {
                 height: '44px'
               }}
             >
-              <Send size={16} />
-              <span className="hide-mobile-text">{isFR ? 'Envoyer' : 'Send'}</span>
+              {isTranslating ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              <span className="hide-mobile-text">
+                {isTranslating ? (isFR ? 'Traduction...' : 'Translating...') : (isFR ? 'Envoyer' : 'Send')}
+              </span>
             </button>
           </form>
 
@@ -650,6 +748,12 @@ export const AdminChatManager = ({ currentLang = 'fr' }) => {
 
           .hide-mobile-text {
             display: none !important;
+          }
+
+          .admin-chat-main textarea,
+          .admin-chat-sidebar input {
+            font-size: 16px !important;
+            touch-action: manipulation !important;
           }
         }
       `}</style>
